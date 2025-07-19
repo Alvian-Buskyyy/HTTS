@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dasbor Regulator - Halalan Thoyyiban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2a9df4',
+                        primaryDark: '#1a7bc9',
+                        primaryLight: '#e6f3fd',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased bg-gray-50">
+    <div class="min-h-screen flex flex-col lg:flex-row">
+        <!-- Sidebar -->
+        <div class="bg-white shadow-lg lg:w-64 lg:flex-shrink-0 border-r lg:block">
+            <!-- Logo -->
+            <div class="p-4 border-b flex items-center justify-center lg:justify-start">
+                <i class="fas fa-shield-halved text-primary text-2xl mr-2"></i>
+                <span class="text-xl font-bold text-primary">Halalan Thoyyiban</span>
+            </div>
+            <!-- Menu Items -->
+            <div class="py-4">
+                <div class="px-4 py-2">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Utama</p>
+                </div>
+                <a href="#dashboard" class="flex items-center px-4 py-3 text-gray-700 bg-primaryLight border-r-4 border-primary">
+                    <i class="fas fa-home w-6"></i>
+                    <span>Dasbor</span>
+                </a>
+                <a href="#verifications" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-check-circle w-6"></i>
+                    <span>Verifikasi Tertunda</span>
+                </a>
+                <a href="#transactions" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-exchange-alt w-6"></i>
+                    <span>Riwayat Transaksi</span>
+                </a>
+                <a href="#compliance" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-clipboard-list w-6"></i>
+                    <span>Laporan Kepatuhan</span>
+                </a>
+                <a href="#entities" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-users w-6"></i>
+                    <span>Manajemen Entitas</span>
+                </a>
+                <div class="px-4 py-2 mt-4">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Akun</p>
+                </div>
+                <a href="#profile" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-user w-6"></i>
+                    <span>Profil</span>
+                </a>
+                <a href="#settings" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-cog w-6"></i>
+                    <span>Pengaturan</span>
+                </a>
+                <a href="landingpage.html" class="flex items-center px-4 py-3 text-red-500 hover:bg-gray-100">
+                    <i class="fas fa-sign-out-alt w-6"></i>
+                    <span>Keluar</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm z-10 sticky top-0">
+                <div class="flex items-center justify-between p-4">
+                    <button class="lg:hidden text-gray-600 focus:outline-none">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <div class="flex items-center space-x-4">
+                        <button class="text-gray-500 focus:outline-none">
+                            <i class="fas fa-bell text-xl"></i>
+                        </button>
+                        <div class="relative">
+                            <div class="flex items-center space-x-2 cursor-pointer">
+                                <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <span class="text-gray-700 font-medium">Regulator BPJPH</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Dashboard Content -->
+            <main class="flex-1 p-6">
+                <h1 class="text-2xl font-semibold text-gray-800 mb-6">Dasbor Regulator</h1>
+                
+                <!-- Stats Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-primaryLight p-3 mr-4">
+                            <i class="fas fa-users text-primary text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Entitas</p>
+                            <p class="text-2xl font-semibold text-gray-800">238</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-yellow-100 p-3 mr-4">
+                            <i class="fas fa-exclamation-circle text-yellow-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Verifikasi Tertunda</p>
+                            <p class="text-2xl font-semibold text-gray-800">24</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-blue-100 p-3 mr-4">
+                            <i class="fas fa-exchange-alt text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Transaksi Hari Ini</p>
+                            <p class="text-2xl font-semibold text-gray-800">18</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-green-100 p-3 mr-4">
+                            <i class="fas fa-check-double text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Tingkat Kepatuhan</p>
+                            <p class="text-2xl font-semibold text-gray-800">98.7%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & QR Code Scanner -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Aktivitas Terbaru</h2>
+                            <a href="#" class="text-primary text-sm">Lihat Semua</a>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-green-100 p-2 mr-4">
+                                    <i class="fas fa-check-circle text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Transaksi #TR-5678 terverifikasi (RPH ke Distributor)</p>
+                                    <p class="text-gray-500 text-sm">Hari ini, 10:30</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-blue-100 p-2 mr-4">
+                                    <i class="fas fa-clipboard-check text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Inspeksi selesai di RPH Al-Baraka</p>
+                                    <p class="text-gray-500 text-sm">Kemarin, 15:45</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-yellow-100 p-2 mr-4">
+                                    <i class="fas fa-user-check text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Menyetujui pendaftaran RPH baru: Rumah Potong Rahmat</p>
+                                    <p class="text-gray-500 text-sm">Kemarin, 11:20</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-purple-100 p-2 mr-4">
+                                    <i class="fas fa-file-alt text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Membuat laporan kepatuhan untuk Q2 2023</p>
+                                    <p class="text-gray-500 text-sm">15 Juli 2023, 09:15</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Code Scanner -->
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Verifikasi Rantai Pasok</h2>
+                        <div class="text-center mb-4">
+                            <div class="bg-gray-100 w-40 h-40 mx-auto flex flex-col items-center justify-center rounded-lg">
+                                <i class="fas fa-qrcode text-6xl text-primary mb-2"></i>
+                                <p class="text-xs text-gray-500">Bidikan Kamera</p>
+                            </div>
+                        </div>
+                        <button class="w-full bg-primary text-white py-2 rounded-md hover:bg-primaryDark transition mb-2">
+                            Pindai Kode QR
+                        </button>
+                        <p class="text-xs text-gray-500 text-center">Pindai kode QR untuk memverifikasi keaslian produk secara instan</p>
+                    </div>
+                </div>
+
+                <!-- Pending Verifications -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Verifikasi Tertunda</h2>
+                        <div class="flex items-center">
+                            <input type="text" placeholder="Cari..." class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm mr-2">
+                            <button class="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm">
+                                <i class="fas fa-filter mr-1"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Transaksi</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dari</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ke</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TR-5685</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">20 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Penjualan</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Distributor Al-Baraka</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Restoran Barokah</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Tertunda</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-green-500 hover:text-green-700"><i class="fas fa-check"></i></button>
+                                        <button class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TR-5682</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">20 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Penyembelihan</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">RPH Al-Amin</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Distributor Rahmat</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Tertunda</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-green-500 hover:text-green-700"><i class="fas fa-check"></i></button>
+                                        <button class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TR-5680</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">19 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Penjualan</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Peternakan Ahmad</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Pasar Al-Falah</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Tertunda</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-green-500 hover:text-green-700"><i class="fas fa-check"></i></button>
+                                        <button class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Compliance Overview -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Ikhtisar Kepatuhan</h2>
+                        <a href="#" class="text-primary text-sm">Buat Laporan</a>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis Entitas</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Entitas</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tersertifikasi (%)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Skor Kepatuhan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inspeksi Terakhir</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">RPH</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">24</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">100%</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <span class="mr-2">98%</span>
+                                            <div class="w-24 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-green-500 h-2 rounded-full" style="width: 98%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">18 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">Distributor</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">36</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">94%</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <span class="mr-2">92%</span>
+                                            <div class="w-24 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-green-500 h-2 rounded-full" style="width: 92%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">15 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">HoReCa</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">85</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">89%</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <span class="mr-2">86%</span>
+                                            <div class="w-24 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-yellow-500 h-2 rounded-full" style="width: 86%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">10 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white p-4 border-t text-center text-gray-500 text-sm">
+                &copy; 2023 Sistem Penelusuran Halalan Thoyyiban
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile menu toggle
+            const menuButton = document.querySelector('button.lg\\:hidden');
+            const sidebar = document.querySelector('.lg\\:w-64');
+            
+            menuButton.addEventListener('click', function() {
+                if (sidebar.classList.contains('hidden')) {
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('fixed', 'inset-y-0', 'left-0', 'z-50');
+                } else {
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('fixed', 'inset-y-0', 'left-0', 'z-50');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

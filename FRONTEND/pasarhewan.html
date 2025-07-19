@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dasbor Pasar Hewan - Halalan Thoyyiban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2a9df4',
+                        primaryDark: '#1a7bc9',
+                        primaryLight: '#e6f3fd',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased bg-gray-50">
+    <div class="min-h-screen flex flex-col lg:flex-row">
+        <!-- Sidebar -->
+        <div class="bg-white shadow-lg lg:w-64 lg:flex-shrink-0 border-r lg:block">
+            <!-- Logo -->
+            <div class="p-4 border-b flex items-center justify-center lg:justify-start">
+                <i class="fas fa-shield-halved text-primary text-2xl mr-2"></i>
+                <span class="text-xl font-bold text-primary">Halalan Thoyyiban</span>
+            </div>
+            <!-- Menu Items -->
+            <div class="py-4">
+                <div class="px-4 py-2">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Utama</p>
+                </div>
+                <a href="#dashboard" class="flex items-center px-4 py-3 text-gray-700 bg-primaryLight border-r-4 border-primary">
+                    <i class="fas fa-home w-6"></i>
+                    <span>Dasbor</span>
+                </a>
+                <a href="#inventory" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-cow w-6"></i>
+                    <span>Inventaris Ternak</span>
+                </a>
+                <a href="#receive" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-truck-loading w-6"></i>
+                    <span>Terima Ternak</span>
+                </a>
+                <a href="#transfers" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-exchange-alt w-6"></i>
+                    <span>Transfer/Jual</span>
+                </a>
+                <a href="#health" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-heartbeat w-6"></i>
+                    <span>Verifikasi Kesehatan</span>
+                </a>
+                <div class="px-4 py-2 mt-4">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Akun</p>
+                </div>
+                <a href="#profile" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-user w-6"></i>
+                    <span>Profil</span>
+                </a>
+                <a href="#settings" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-cog w-6"></i>
+                    <span>Pengaturan</span>
+                </a>
+                <a href="landingpage.html" class="flex items-center px-4 py-3 text-red-500 hover:bg-gray-100">
+                    <i class="fas fa-sign-out-alt w-6"></i>
+                    <span>Keluar</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm z-10 sticky top-0">
+                <div class="flex items-center justify-between p-4">
+                    <button class="lg:hidden text-gray-600 focus:outline-none">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <div class="flex items-center space-x-4">
+                        <button class="text-gray-500 focus:outline-none">
+                            <i class="fas fa-bell text-xl"></i>
+                        </button>
+                        <div class="relative">
+                            <div class="flex items-center space-x-2 cursor-pointer">
+                                <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <span class="text-gray-700 font-medium">Pasar Hewan Al-Falah</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Dashboard Content -->
+            <main class="flex-1 p-6">
+                <h1 class="text-2xl font-semibold text-gray-800 mb-6">Dasbor Pasar Hewan</h1>
+                
+                <!-- Stats Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-primaryLight p-3 mr-4">
+                            <i class="fas fa-cow text-primary text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Ternak</p>
+                            <p class="text-2xl font-semibold text-gray-800">46</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-green-100 p-3 mr-4">
+                            <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Diterima Minggu Ini</p>
+                            <p class="text-2xl font-semibold text-gray-800">12</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-blue-100 p-3 mr-4">
+                            <i class="fas fa-exchange-alt text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Ditransfer Minggu Ini</p>
+                            <p class="text-2xl font-semibold text-gray-800">9</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-yellow-100 p-3 mr-4">
+                            <i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Menunggu Verifikasi</p>
+                            <p class="text-2xl font-semibold text-gray-800">3</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & QR Code Scanner -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Aktivitas Terbaru</h2>
+                            <a href="#" class="text-primary text-sm">Lihat Semua</a>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-green-100 p-2 mr-4">
+                                    <i class="fas fa-download text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Menerima 5 ternak dari Peternakan Ahmad</p>
+                                    <p class="text-gray-500 text-sm">Hari ini, 10:30</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-blue-100 p-2 mr-4">
+                                    <i class="fas fa-exchange-alt text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Mentransfer 3 ternak ke Rumah Potong Al-Baraka</p>
+                                    <p class="text-gray-500 text-sm">Kemarin, 15:45</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-yellow-100 p-2 mr-4">
+                                    <i class="fas fa-clipboard-check text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Verifikasi kesehatan untuk 4 ternak selesai</p>
+                                    <p class="text-gray-500 text-sm">Kemarin, 11:20</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-purple-100 p-2 mr-4">
+                                    <i class="fas fa-tag text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Harga diperbarui untuk 8 ternak</p>
+                                    <p class="text-gray-500 text-sm">15 Juli 2023, 09:15</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Code Scanner -->
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Pemindai Kode QR</h2>
+                        <div class="text-center mb-4">
+                            <div class="bg-gray-100 w-40 h-40 mx-auto flex flex-col items-center justify-center rounded-lg">
+                                <i class="fas fa-qrcode text-6xl text-primary mb-2"></i>
+                                <p class="text-xs text-gray-500">Bidikan Kamera</p>
+                            </div>
+                        </div>
+                        <button class="w-full bg-primary text-white py-2 rounded-md hover:bg-primaryDark transition mb-2">
+                            Pindai Kode QR
+                        </button>
+                        <p class="text-xs text-gray-500 text-center">Pindai kode QR ternak untuk melihat atau memperbarui informasi</p>
+                    </div>
+                </div>
+
+                <!-- Animal Inventory -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Inventaris Ternak</h2>
+                        <div class="flex items-center">
+                            <input type="text" placeholder="Cari..." class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm mr-2">
+                            <button class="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm">
+                                <i class="fas fa-filter mr-1"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sumber</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Tiba</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berat (kg)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Kesehatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0054</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Sapi Betina</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Peternakan Ahmad</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">325</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Terverifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-edit"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-qrcode"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-exchange-alt"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0053</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Sapi Jantan</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Peternakan Salam</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">410</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Terverifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-edit"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-qrcode"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-exchange-alt"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0051</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Sapi Betina</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Peternakan Ahmad</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">15 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">315</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Menunggu</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-edit"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-qrcode"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-exchange-alt"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Transfer Records -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Transfer Terbaru</h2>
+                        <a href="#" class="text-primary text-sm">Lihat Semua Transfer</a>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Transfer</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Ternak</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tujuan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lihat</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TR-5678</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0052</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Rumah Potong Al-Baraka</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Selesai</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TR-5677</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0049, HT-2023-0050</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Rumah Potong Rahmat</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Selesai</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TR-5676</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">15 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0048</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Jagal Hasan</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">Dalam Pengiriman</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white p-4 border-t text-center text-gray-500 text-sm">
+                &copy; 2023 Sistem Penelusuran Halalan Thoyyiban
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile menu toggle
+            const menuButton = document.querySelector('button.lg\\:hidden');
+            const sidebar = document.querySelector('.lg\\:w-64');
+            
+            menuButton.addEventListener('click', function() {
+                if (sidebar.classList.contains('hidden')) {
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('fixed', 'inset-y-0', 'left-0', 'z-50');
+                } else {
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('fixed', 'inset-y-0', 'left-0', 'z-50');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

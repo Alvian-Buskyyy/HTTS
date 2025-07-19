@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaksi Pembelian - Halalan Thoyyiban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2a9df4',
+                        primaryDark: '#1a7bc9',
+                        primaryLight: '#e6f3fd',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased bg-gray-50">
+    <div class="min-h-screen flex flex-col lg:flex-row">
+        <!-- Sidebar -->
+        <div class="bg-white shadow-lg lg:w-64 lg:flex-shrink-0 border-r lg:block">
+            <!-- Logo -->
+            <div class="p-4 border-b flex items-center justify-center lg:justify-start">
+                <i class="fas fa-shield-halved text-primary text-2xl mr-2"></i>
+                <span class="text-xl font-bold text-primary">Halalan Thoyyiban</span>
+            </div>
+            <!-- Menu Items -->
+            <div class="py-4">
+                <div class="px-4 py-2">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Utama</p>
+                </div>
+                <a href="#dashboard" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-home w-6"></i>
+                    <span>Dasbor</span>
+                </a>
+                <a href="#transaksi" class="flex items-center px-4 py-3 text-gray-700 bg-primaryLight border-r-4 border-primary">
+                    <i class="fas fa-exchange-alt w-6"></i>
+                    <span>Transaksi</span>
+                </a>
+                <a href="#inventory" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-warehouse w-6"></i>
+                    <span>Inventaris</span>
+                </a>
+                <a href="#verification" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-check-circle w-6"></i>
+                    <span>Verifikasi</span>
+                </a>
+                <a href="#reports" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-chart-bar w-6"></i>
+                    <span>Laporan</span>
+                </a>
+                <div class="px-4 py-2 mt-4">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Akun</p>
+                </div>
+                <a href="#profile" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-user w-6"></i>
+                    <span>Profil</span>
+                </a>
+                <a href="#settings" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-cog w-6"></i>
+                    <span>Pengaturan</span>
+                </a>
+                <a href="landingpage.html" class="flex items-center px-4 py-3 text-red-500 hover:bg-gray-100">
+                    <i class="fas fa-sign-out-alt w-6"></i>
+                    <span>Keluar</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm z-10 sticky top-0">
+                <div class="flex items-center justify-between p-4">
+                    <button class="lg:hidden text-gray-600 focus:outline-none">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <div class="flex items-center space-x-4">
+                        <button class="text-gray-500 focus:outline-none">
+                            <i class="fas fa-bell text-xl"></i>
+                        </button>
+                        <div class="relative">
+                            <div class="flex items-center space-x-2 cursor-pointer">
+                                <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <span class="text-gray-700 font-medium">Pengguna Sistem</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Dashboard Content -->
+            <main class="flex-1 p-6">
+                <h1 class="text-2xl font-semibold text-gray-800 mb-6">Manajemen Transaksi</h1>
+                
+                <!-- Tab Navigation -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button class="py-2 px-4 text-sm font-medium border-b-2 border-transparent hover:border-gray-300 hover:text-gray-700">
+                        Ringkasan
+                    </button>
+                    <button class="py-2 px-4 text-sm font-medium border-b-2 border-primary text-primary">
+                        Transaksi Pembelian
+                    </button>
+                    <button class="py-2 px-4 text-sm font-medium border-b-2 border-transparent hover:border-gray-300 hover:text-gray-700">
+                        Transaksi Penjualan
+                    </button>
+                    <button class="py-2 px-4 text-sm font-medium border-b-2 border-transparent hover:border-gray-300 hover:text-gray-700">
+                        Riwayat Transaksi
+                    </button>
+                </div>
+
+                <!-- Transaksi Pembelian Section -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Transaksi Pembelian</h2>
+                        <button class="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm" id="btnNewPurchase">
+                            <i class="fas fa-plus mr-1"></i> Buat Transaksi Baru
+                        </button>
+                    </div>
+
+                    <!-- Form Transaksi Baru (Hidden by default) -->
+                    <div id="newPurchaseForm" class="hidden border border-gray-200 rounded-lg p-4 mb-6 bg-gray-50">
+                        <h3 class="text-md font-semibold text-gray-800 mb-4">Buat Transaksi Pembelian Baru</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Pembelian</label>
+                                <select class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
+                                    <option value="sapi">Ternak Sapi</option>
+                                    <option value="daging">Daging</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Penjual</label>
+                                <select class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
+                                    <option value="" disabled selected>-- Pilih Penjual --</option>
+                                    <option value="PETERNAK-123">Peternakan Ahmad</option>
+                                    <option value="PASAR_HEWAN-123">Pasar Hewan Al-Falah</option>
+                                    <option value="JAGAL-123">Jagal Berkah</option>
+                                    <option value="RPH-123">RPH Al-Baraka</option>
+                                    <option value="DISTRIBUTOR-123">Distributor Daging Halal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Entitas Penjual</label>
+                                <select class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
+                                    <option value="PETERNAK">Peternak</option>
+                                    <option value="PASAR_HEWAN">Pasar Hewan</option>
+                                    <option value="JAGAL">Jagal</option>
+                                    <option value="RPH">RPH</option>
+                                    <option value="DISTRIBUTOR">Distributor</option>
+                                    <option value="HOREKA">HoReCa</option>
+                                </select>
+                            </div>
+                            <div id="itemSelection">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Pilih Item</label>
+                                <select class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
+                                    <option value="" disabled selected>-- Pilih Item --</option>
+                                    <option value="HT-2023-0092">HT-2023-0092 - Sapi Betina</option>
+                                    <option value="HT-2023-0091">HT-2023-0091 - Sapi Jantan</option>
+                                    <option value="DG-2023-0045">DG-2023-0045 - Daging Has Dalam</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                                <input type="number" min="1" value="1" class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Catatan Transaksi</label>
+                                <textarea class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <div class="flex justify-end space-x-2 mt-4">
+                            <button class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-sm" id="btnCancelPurchase">
+                                Batal
+                            </button>
+                            <button class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark transition text-sm">
+                                <i class="fas fa-save mr-1"></i> Simpan Transaksi
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filter dan Pencarian -->
+                    <div class="flex flex-wrap gap-2 justify-between items-center mb-4">
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <select class="border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                                <option value="all">Semua Jenis</option>
+                                <option value="sapi">Ternak Sapi</option>
+                                <option value="daging">Daging</option>
+                            </select>
+                            <select class="border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                                <option value="all">Semua Status</option>
+                                <option value="pending">Menunggu Verifikasi</option>
+                                <option value="verified">Terverifikasi</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="text" placeholder="Cari transaksi..." class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm mr-2">
+                            <button class="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm">
+                                <i class="fas fa-search mr-1"></i> Cari
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabel Transaksi -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Transaksi</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penjual</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis Item</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TPB-20230716-001</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Peternakan Ahmad</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Ternak</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0092</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">1</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Menunggu Verifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                        <button class="text-green-500 hover:text-green-700"><i class="fas fa-check-circle"></i></button>
+                                        <button class="text-red-500 hover:text-red-700"><i class="fas fa-times-circle"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TPB-20230715-003</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">15 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">RPH Al-Baraka</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Daging</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">DG-2023-0045</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">50</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Terverifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                        <button class="text-gray-400 cursor-not-allowed"><i class="fas fa-check-circle"></i></button>
+                                        <button class="text-gray-400 cursor-not-allowed"><i class="fas fa-times-circle"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TPB-20230714-002</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">14 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Pasar Hewan Al-Falah</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Ternak</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0091</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">1</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Terverifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                        <button class="text-gray-400 cursor-not-allowed"><i class="fas fa-check-circle"></i></button>
+                                        <button class="text-gray-400 cursor-not-allowed"><i class="fas fa-times-circle"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="flex justify-between items-center mt-6">
+                        <p class="text-sm text-gray-600">Menampilkan 1-3 dari 8 transaksi</p>
+                        <div class="flex space-x-1">
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-sm bg-primary text-white">1</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100">2</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100">3</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-100">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Detail Transaksi Modal -->
+                <div id="transactionDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-semibold text-gray-800">Detail Transaksi <span class="text-primary">#TPB-20230716-001</span></h3>
+                                <button id="closeDetailModal" class="text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-500 mb-2">Informasi Transaksi</h4>
+                                    <div class="space-y-2">
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">ID Transaksi:</span>
+                                            <span class="font-medium">TPB-20230716-001</span>
+                                        </p>
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">Tanggal:</span>
+                                            <span class="font-medium">16 Jul 2023, 14:23</span>
+                                        </p>
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">Status:</span>
+                                            <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Menunggu Verifikasi</span>
+                                        </p>
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">Jenis Transaksi:</span>
+                                            <span class="font-medium">Pembelian Ternak</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-500 mb-2">Verifikasi Blockchain</h4>
+                                    <div class="space-y-2">
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">CID:</span>
+                                            <span class="font-medium text-xs truncate">bafybeihvlwodlxmqpcsdwfnvpz74l2e5qqgmkd4bwrq7dbygal3mpw6dme</span>
+                                        </p>
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">Status Verifikasi Penjual:</span>
+                                            <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                                        </p>
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">Status Verifikasi Pembeli:</span>
+                                            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Verified</span>
+                                        </p>
+                                        <p class="flex justify-between">
+                                            <span class="text-gray-600">Status Verifikasi Regulator:</span>
+                                            <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">N/A</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h4 class="text-sm font-semibold text-gray-500 mb-2">Detail Item</h4>
+                                <div class="border rounded-lg overflow-hidden">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Item</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deskripsi</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap">HT-2023-0092</td>
+                                                <td class="px-6 py-4">
+                                                    <p class="font-medium">Sapi Betina</p>
+                                                    <p class="text-sm text-gray-500">Usia: 3 tahun</p>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">1</td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <button class="text-primary hover:text-primaryDark">
+                                                        <i class="fas fa-qrcode mr-1"></i> Lihat QR
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-500 mb-2">Informasi Penjual</h4>
+                                    <div class="border rounded-lg p-4 bg-gray-50">
+                                        <p class="font-medium">Peternakan Ahmad</p>
+                                        <p class="text-sm text-gray-600">Peternak</p>
+                                        <p class="text-sm text-gray-600 mt-2">ID: PETERNAK-123</p>
+                                        <p class="text-sm text-gray-600">Telepon: 0812-3456-7890</p>
+                                        <p class="text-sm text-gray-600">Alamat: Jl. Peternakan Sehat No. 123, Bogor</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-500 mb-2">Informasi Pembeli</h4>
+                                    <div class="border rounded-lg p-4 bg-gray-50">
+                                        <p class="font-medium">Pasar Hewan Al-Falah</p>
+                                        <p class="text-sm text-gray-600">Pasar Hewan</p>
+                                        <p class="text-sm text-gray-600 mt-2">ID: PASAR_HEWAN-123</p>
+                                        <p class="text-sm text-gray-600">Telepon: 0812-9876-5432</p>
+                                        <p class="text-sm text-gray-600">Alamat: Jl. Pasar Hewan No. 45, Bandung</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h4 class="text-sm font-semibold text-gray-500 mb-2">Catatan Transaksi</h4>
+                                <div class="border rounded-lg p-4 bg-gray-50">
+                                    <p class="text-sm text-gray-600">Pembelian ternak sapi betina untuk stok pasar hewan. Kondisi sapi sehat dan telah diverifikasi oleh dokter hewan.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-2">
+                                <button class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-sm">
+                                    <i class="fas fa-print mr-1"></i> Cetak
+                                </button>
+                                <button class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark transition text-sm">
+                                    <i class="fas fa-check-circle mr-1"></i> Verifikasi
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white p-4 border-t text-center text-gray-500 text-sm">
+                &copy; 2023 Sistem Penelusuran Halalan Thoyyiban
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile menu toggle
+            const menuButton = document.querySelector('button.lg\\:hidden');
+            const sidebar = document.querySelector('.lg\\:w-64');
+            
+            menuButton.addEventListener('click', function() {
+                if (sidebar.classList.contains('hidden')) {
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('fixed', 'inset-y-0', 'left-0', 'z-50');
+                } else {
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('fixed', 'inset-y-0', 'left-0', 'z-50');
+                }
+            });
+
+            // Transaction form toggle
+            const btnNewPurchase = document.getElementById('btnNewPurchase');
+            const btnCancelPurchase = document.getElementById('btnCancelPurchase');
+            const newPurchaseForm = document.getElementById('newPurchaseForm');
+
+            btnNewPurchase.addEventListener('click', function() {
+                newPurchaseForm.classList.remove('hidden');
+            });
+
+            btnCancelPurchase.addEventListener('click', function() {
+                newPurchaseForm.classList.add('hidden');
+            });
+
+            // Detail modal toggle
+            const viewDetailButtons = document.querySelectorAll('.text-primary.hover\\:text-primaryDark');
+            const transactionDetailModal = document.getElementById('transactionDetailModal');
+            const closeDetailModal = document.getElementById('closeDetailModal');
+
+            viewDetailButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    transactionDetailModal.classList.remove('hidden');
+                });
+            });
+
+            closeDetailModal.addEventListener('click', function() {
+                transactionDetailModal.classList.add('hidden');
+            });
+
+            // Close modal when clicking outside
+            transactionDetailModal.addEventListener('click', function(event) {
+                if (event.target === transactionDetailModal) {
+                    transactionDetailModal.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar - Halalan Thoyyiban Traceability System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2a9df4',
+                        primaryDark: '#1a7bc9',
+                        primaryLight: '#e6f3fd'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased text-gray-800 bg-gray-50">
+    <div class="min-h-screen flex flex-col">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <a href="landingpage.html" class="flex-shrink-0 flex items-center">
+                            <i class="fas fa-shield-halved text-primary text-2xl mr-2"></i>
+                            <span class="text-xl font-bold text-primary">Halalan Thoyyiban</span>
+                        </a>
+                    </div>
+                    <div class="flex items-center">
+                        <a href="landingpage.html#login" class="flex items-center gap-2 text-gray-700 hover:text-primary transition-colors duration-300 px-4 py-2 rounded-md text-sm font-medium border border-gray-200 hover:border-primary hover:bg-primaryLight">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Sudah punya akun? <span class="font-semibold">Masuk</span></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Sign Up Form -->
+        <div class="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
+                <div>
+                    <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Buat akun Anda</h2>
+                    <p class="mt-2 text-center text-sm text-gray-600">
+                        Bergabung dengan Sistem Penelusuran Halalan Thoyyiban
+                    </p>
+                </div>
+                <form class="mt-8 space-y-6" id="signupForm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-700">Nama Pengguna</label>
+                            <input id="username" name="username" type="text" required class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                        </div>
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                            <input id="email" name="email" type="email" required class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                        </div>
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700">Kata Sandi</label>
+                            <input id="password" name="password" type="password" required class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                        </div>
+                        <div>
+                            <label for="confirm-password" class="block text-sm font-medium text-gray-700">Konfirmasi Kata Sandi</label>
+                            <input id="confirm-password" name="confirm-password" type="password" required class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                        </div>
+                        <div>
+                            <label for="role" class="block text-sm font-medium text-gray-700">Peran</label>
+                            <select id="role" name="role" required class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                                <option value="">Pilih Peran</option>
+                                <option value="PETERNAK">Peternak (Farmer)</option>
+                                <option value="PASAR_HEWAN">Pasar Hewan (Animal Market)</option>
+                                <option value="JAGAL">Jagal (Slaughterer)</option>
+                                <option value="RPH">RPH (Slaughterhouse)</option>
+                                <option value="DISTRIBUTOR">Distributor</option>
+                                <option value="HOREKA">HoReCa (Hotel/Restaurant/Catering)</option>
+                                <option value="REGULATOR">Regulator</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="profile-fields" class="mt-8 border-t pt-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Informasi Profil</h3>
+                        
+                        <!-- Dynamic fields will be loaded here based on role selection -->
+                        <div id="dynamic-fields" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="md:col-span-2">
+                                <p class="text-sm text-gray-500">Silakan pilih peran untuk melihat bidang khusus.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primaryDark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                                <i class="fas fa-user-plus"></i>
+                            </span>
+                            Daftar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 text-white py-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <p>© 2023 Halalan Thoyyiban Traceability System</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleSelect = document.getElementById('role');
+            const dynamicFields = document.getElementById('dynamic-fields');
+            
+            roleSelect.addEventListener('change', function() {
+                const role = this.value;
+                if (!role) {
+                    dynamicFields.innerHTML = `
+                        <div class="md:col-span-2">
+                            <p class="text-sm text-gray-500">Silakan pilih peran untuk melihat bidang khusus.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Load fields based on selected role
+                switch(role) {
+                    case 'PETERNAK':
+                        dynamicFields.innerHTML = `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nama</label>
+                                <input type="text" name="nama" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Alamat</label>
+                                <input type="text" name="alamat" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">No Telepon</label>
+                                <input type="tel" name="noTelepon" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Jumlah Sapi</label>
+                                <input type="number" name="jumlahSapi" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">Sertifikat NKV (opsional)</label>
+                                <input type="file" name="sertifikatNKV" class="mt-1 block w-full py-2 px-3">
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'PASAR_HEWAN':
+                        dynamicFields.innerHTML = `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nama Pasar</label>
+                                <input type="text" name="nama" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Alamat</label>
+                                <input type="text" name="alamat" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">No Telepon</label>
+                                <input type="tel" name="noTelepon" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Jumlah Sapi</label>
+                                <input type="number" name="jumlahSapi" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">Sertifikat NKV (opsional)</label>
+                                <input type="file" name="sertifikatNKV" class="mt-1 block w-full py-2 px-3">
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'JAGAL':
+                        dynamicFields.innerHTML = `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nama</label>
+                                <input type="text" name="nama" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Alamat</label>
+                                <input type="text" name="alamat" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">No Telepon</label>
+                                <input type="tel" name="noTelepon" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Jumlah Sapi</label>
+                                <input type="number" name="jumlahSapi" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Jumlah Daging</label>
+                                <input type="number" name="jumlahDaging" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">Sertifikat NKV (opsional)</label>
+                                <input type="file" name="sertifikatNKV" class="mt-1 block w-full py-2 px-3">
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'RPH':
+                        dynamicFields.innerHTML = `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nama RPH</label>
+                                <input type="text" name="nama" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Alamat</label>
+                                <input type="text" name="alamat" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">No Telepon</label>
+                                <input type="tel" name="noTelepon" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Jumlah Penyelia</label>
+                                <input type="number" name="jumlahPenyelia" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Nama JULEHA (opsional)</label>
+                                <input type="text" name="namaJuleha" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">No Sertifikat JULEHA (opsional)</label>
+                                <input type="text" name="noSertifJuleha" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Sertifikat NKV (opsional)</label>
+                                <input type="file" name="sertifikatNKV" class="mt-1 block w-full py-2 px-3">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Sertifikat Halal (opsional)</label>
+                                <input type="file" name="sertifikatHalal" class="mt-1 block w-full py-2 px-3">
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'DISTRIBUTOR':
+                        dynamicFields.innerHTML = `
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Nama Usaha</label>
+            <input type="text" name="namaUsaha" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Alamat</label>
+            <input type="text" name="alamat" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">No Telepon</label>
+            <input type="tel" name="noTelepon" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Fasilitas Penyimpanan</label>
+            <input type="text" name="fasilitasPenyimpanan" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+    `;
+    break;
+                    
+                    case 'HOREKA':
+                        dynamicFields.innerHTML = `
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Nama</label>
+            <input type="text" name="nama" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Alamat</label>
+            <input type="text" name="alamat" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">No Telepon</label>
+            <input type="tel" name="noTelepon" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+    `;
+    break;
+
+    case 'REGULATOR':
+        dynamicFields.innerHTML = `
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Nama</label>
+            <input type="text" name="nama" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Instansi</label>
+            <input type="text" name="instansi" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Jabatan</label>
+            <input type="text" name="jabatan" class="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border">
+        </div>
+    `;
+    break;
+                }
+            });
+            
+            // Handle form submission
+            document.getElementById('signupForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Basic validation (you could add more validation here)
+                const username = document.getElementById('username').value;
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirm-password').value;
+                
+                if (password !== confirmPassword) {
+                    alert('Kata sandi tidak cocok!');
+                    return;
+                }
+                
+                // Here you would typically submit the data to your backend API
+                alert('Akun berhasil dibuat! Silakan masuk untuk melanjutkan.');
+                
+                // Redirect to landing page with login modal trigger
+                window.location.href = 'landingpage.html#login';
+            });
+        });
+    </script>
+</body>
+</html>

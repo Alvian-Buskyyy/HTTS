@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dasbor Jagal - Halalan Thoyyiban</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2a9df4',
+                        primaryDark: '#1a7bc9',
+                        primaryLight: '#e6f3fd',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-sans antialiased bg-gray-50">
+    <div class="min-h-screen flex flex-col lg:flex-row">
+        <!-- Sidebar -->
+        <div class="bg-white shadow-lg lg:w-64 lg:flex-shrink-0 border-r lg:block">
+            <!-- Logo -->
+            <div class="p-4 border-b flex items-center justify-center lg:justify-start">
+                <i class="fas fa-shield-halved text-primary text-2xl mr-2"></i>
+                <span class="text-xl font-bold text-primary">Halalan Thoyyiban</span>
+            </div>
+            <!-- Menu Items -->
+            <div class="py-4">
+                <div class="px-4 py-2">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Utama</p>
+                </div>
+                <a href="#dashboard" class="flex items-center px-4 py-3 text-gray-700 bg-primaryLight border-r-4 border-primary">
+                    <i class="fas fa-home w-6"></i>
+                    <span>Dasbor</span>
+                </a>
+                <a href="#inventory" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-drumstick-bite w-6"></i>
+                    <span>Inventaris Daging</span>
+                </a>
+                <a href="#slaughter" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-cut w-6"></i>
+                    <span>Penyembelihan</span>
+                </a>
+                <a href="#cattle" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-cow w-6"></i>
+                    <span>Ternak Tersedia</span>
+                </a>
+                <a href="#halal" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-check-circle w-6"></i>
+                    <span>Verifikasi Halal</span>
+                </a>
+                <div class="px-4 py-2 mt-4">
+                    <p class="text-xs uppercase text-gray-500 font-semibold">Akun</p>
+                </div>
+                <a href="#profile" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-user w-6"></i>
+                    <span>Profil</span>
+                </a>
+                <a href="#settings" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-cog w-6"></i>
+                    <span>Pengaturan</span>
+                </a>
+                <a href="landingpage.html" class="flex items-center px-4 py-3 text-red-500 hover:bg-gray-100">
+                    <i class="fas fa-sign-out-alt w-6"></i>
+                    <span>Keluar</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm z-10 sticky top-0">
+                <div class="flex items-center justify-between p-4">
+                    <button class="lg:hidden text-gray-600 focus:outline-none">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <div class="flex items-center space-x-4">
+                        <button class="text-gray-500 focus:outline-none">
+                            <i class="fas fa-bell text-xl"></i>
+                        </button>
+                        <div class="relative">
+                            <div class="flex items-center space-x-2 cursor-pointer">
+                                <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <span class="text-gray-700 font-medium">Jagal Berkah</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Dashboard Content -->
+            <main class="flex-1 p-6">
+                <h1 class="text-2xl font-semibold text-gray-800 mb-6">Dasbor Jagal</h1>
+                
+                <!-- Stats Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-primaryLight p-3 mr-4">
+                            <i class="fas fa-cow text-primary text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Ternak Tersedia</p>
+                            <p class="text-2xl font-semibold text-gray-800">12</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-green-100 p-3 mr-4">
+                            <i class="fas fa-drumstick-bite text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Daging (kg)</p>
+                            <p class="text-2xl font-semibold text-gray-800">850</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-blue-100 p-3 mr-4">
+                            <i class="fas fa-cut text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Sembelih Hari Ini</p>
+                            <p class="text-2xl font-semibold text-gray-800">3</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm p-6 flex items-center">
+                        <div class="rounded-full bg-yellow-100 p-3 mr-4">
+                            <i class="fas fa-check-double text-yellow-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Tersertifikasi Halal</p>
+                            <p class="text-2xl font-semibold text-gray-800">100%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & QR Code Generator -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Recent Activity -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Aktivitas Terbaru</h2>
+                            <a href="#" class="text-primary text-sm">Lihat Semua</a>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-green-100 p-2 mr-4">
+                                    <i class="fas fa-cut text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Penyembelihan ternak selesai (ID: HT-2023-0092)</p>
+                                    <p class="text-gray-500 text-sm">Hari ini, 09:15</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-blue-100 p-2 mr-4">
+                                    <i class="fas fa-weight text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Daging berhasil ditimbang dan dikemas: 120kg</p>
+                                    <p class="text-gray-500 text-sm">Hari ini, 10:30</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-yellow-100 p-2 mr-4">
+                                    <i class="fas fa-truck text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Pengiriman daging ke Distributor Al-Baraka</p>
+                                    <p class="text-gray-500 text-sm">Kemarin, 15:45</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="rounded-full bg-purple-100 p-2 mr-4">
+                                    <i class="fas fa-clipboard-check text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="text-gray-800">Verifikasi halal selesai untuk 5 daging</p>
+                                    <p class="text-gray-500 text-sm">14 Jul 2023, 13:20</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Code Generator -->
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Generator Kode QR</h2>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Pilih ID Daging</label>
+                            <select class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
+                                <option>-- Pilih ID Daging --</option>
+                                <option>DG-2023-0045</option>
+                                <option>DG-2023-0044</option>
+                                <option>DG-2023-0043</option>
+                                <option>DG-2023-0042</option>
+                            </select>
+                        </div>
+                        <div class="text-center mb-4">
+                            <div class="bg-gray-100 w-40 h-40 mx-auto flex flex-col items-center justify-center rounded-lg">
+                                <i class="fas fa-qrcode text-6xl text-primary mb-2"></i>
+                                <p class="text-xs text-gray-500">Pratinjau QR</p>
+                            </div>
+                        </div>
+                        <button class="w-full bg-primary text-white py-2 rounded-md hover:bg-primaryDark transition mb-2">
+                            Buat Kode QR
+                        </button>
+                        <button class="w-full border border-primary text-primary py-2 rounded-md hover:bg-primaryLight transition">
+                            Unduh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Meat Inventory -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Inventaris Daging</h2>
+                        <div class="flex items-center">
+                            <input type="text" placeholder="Cari..." class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm mr-2">
+                            <button class="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm">
+                                <i class="fas fa-filter mr-1"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis Daging</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asal Ternak</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berat (kg)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Produksi</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Halal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">DG-2023-0045</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Daging Has Dalam</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0092</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">120</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Terverifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-edit"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-qrcode"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-truck"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">DG-2023-0044</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Daging Has Luar</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0091</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">180</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Terverifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-edit"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-qrcode"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-truck"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">DG-2023-0043</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Daging Gandik</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0090</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">85</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">15 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Terverifikasi</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm flex space-x-2">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-edit"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-qrcode"></i></button>
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-truck"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Slaughtering Records -->
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800">Catatan Penyembelihan Terbaru</h2>
+                        <a href="#" class="text-primary text-sm">Lihat Semua Catatan</a>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Transaksi</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Ternak</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tujuan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lihat</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TS-9876</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0092</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Pasar Hewan Al-Falah</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Distributor Al-Baraka</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Selesai</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TS-9875</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">16 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0091</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Pasar Hewan Al-Falah</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Distributor Rahmat</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Selesai</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">TS-9874</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">15 Jul 2023</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">HT-2023-0090</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Peternakan Ahmad</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">Distributor Al-Baraka</td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Selesai</span></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <button class="text-primary hover:text-primaryDark"><i class="fas fa-eye"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white p-4 border-t text-center text-gray-500 text-sm">
+                &copy; 2023 Sistem Penelusuran Halalan Thoyyiban
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mobile menu toggle
+            const menuButton = document.querySelector('button.lg\\:hidden');
+            const sidebar = document.querySelector('.lg\\:w-64');
+            
+            menuButton.addEventListener('click', function() {
+                if (sidebar.classList.contains('hidden')) {
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('fixed', 'inset-y-0', 'left-0', 'z-50');
+                } else {
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('fixed', 'inset-y-0', 'left-0', 'z-50');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

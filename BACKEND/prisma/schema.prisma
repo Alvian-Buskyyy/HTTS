@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS
+enum UserRole {
+  ADMIN
+  PETERNAK
+  PASAR_HEWAN
+  JAGAL
+  RPH
+  DISTRIBUTOR
+  HOREKA
+  REGULATOR
+}
+
+enum EntityType {
+  PETERNAK
+  PASAR_HEWAN
+  JAGAL
+  RPH
+  DISTRIBUTOR
+  HOREKA
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// MODELS
+
+model User {
+  id        String   @id @default(uuid())
+  username  String
+  email     String   @unique
+  password  String
+  role      UserRole
+  profile   Profile?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Profile {
+  id          String     @id @default(uuid())
+  entityType  EntityType
+  user        User       @relation(fields: [userId], references: [id])
+  userId      String     @unique
+
+  peternakId    String?  @unique
+  peternak      Peternak? @relation(fields: [peternakId], references: [id])
+  
+  pasarHewanId  String?  @unique
+  pasarHewan    PasarHewan? @relation(fields: [pasarHewanId], references: [id])
+  
+  jagalId       String?  @unique
+  jagal         Jagal?   @relation(fields: [jagalId], references: [id])
+  
+  rphId         String?  @unique
+  rph           RPH?     @relation(fields: [rphId], references: [id])
+  
+  distributorId String?  @unique
+  distributor   Distributor? @relation(fields: [distributorId], references: [id])
+  
+  horekaId      String?  @unique
+  horeka        Horeka?  @relation(fields: [horekaId], references: [id])
+  
+  regulatorId   String?  @unique
+  regulator     Regulator? @relation(fields: [regulatorId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Regulator {
+  id       String   @id @default(uuid())
+  nama     String
+  instansi String
+  jabatan  String
+
+  profiles Profile[]
+}
+
+model Peternak {
+  id             String     @id @default(uuid())
+  nama           String
+  alamat         String
+  noTelepon      String
+  jumlahSapi     Int
+  sertifikatNKV  String?
+  
+  sapi           Sapi[]
+  profiles       Profile[]
+}
+
+model PasarHewan {
+  id             String     @id @default(uuid())
+  nama           String
+  alamat         String
+  noTelepon      String
+  jumlahSapi     Int
+  sertifikatNKV  String?
+  
+  sapi           Sapi[]
+  profiles       Profile[]
+}
+
+model Jagal {
+  id             String     @id @default(uuid())
+  nama           String
+  alamat         String
+  noTelepon      String
+  jumlahSapi     Int
+  jumlahDaging   Int
+  sertifikatNKV  String?
+
+  profiles               Profile[]
+  transaksiPenyembelihan TransaksiPenyembelihan[] @relation("JagalToPenyembelihan")
+}
+
+model RPH {
+  id                     String     @id @default(uuid())
+  nama                   String
+  alamat                 String
+  noTelepon              String
+  sertifikatNKV          String?
+  sertifikatHalal        String?
+  namaJuleha             String?
+  noSertifJuleha         String?
+  jumlahPenyelia         Int
+
+  profiles               Profile[]
+  transaksiPenyembelihan TransaksiPenyembelihan[] @relation("RPHToPenyembelihan")
+}
+
+model Distributor {
+  id                    String     @id @default(uuid())
+  namaUsaha             String
+  alamat                String
+  noTelepon             String
+  kondisiProduk         String?
+  fasilitasPenyimpanan  String?
+
+  profiles               Profile[]
+  transaksiPenyembelihan TransaksiPenyembelihan[] @relation("DistributorToPenyembelihan")
+}
+
+model Horeka {
+  id            String     @id @default(uuid())
+  nama          String
+  alamat        String
+  noTelepon     String
+  kondisiProduk String?
+
+  profiles      Profile[]
+}
+
+model Sapi {
+  id                     String     @id @default(uuid())
+  usia                   Int
+  jenis                  String
+  kelamin                String
+  asalType               EntityType
+  asalId                 String
+  
+  peternakId             String?
+  peternak               Peternak? @relation(fields: [peternakId], references: [id])
+  
+  pasarHewanId           String?
+  pasarHewan             PasarHewan? @relation(fields: [pasarHewanId], references: [id])
+  
+  daging                 Daging?
+  transaksiPenyembelihan TransaksiPenyembelihan[]
+  transaksiPenjualan     TransaksiPenjualan[]    // Tambahkan ini
+  pengecekanSehat        PengecekanSehat[]
+  pengecekanHalalSehat   PengecekanHalalSehat[]
+  qr                     QR[]
+}
+
+model Daging {
+  id                     String     @id @default(uuid())
+  sapiId                 String     @unique
+  sapi                   Sapi       @relation(fields: [sapiId], references: [id])
+  berat                  Float
+  
+  transaksiPenjualan     TransaksiPenjualan[]
+  qr                     QR[]
+}
+
+model TransaksiPenyembelihan {
+  id            String     @id @default(uuid())
+  
+  penyembelihType EntityType
+  penyembelihId   String
+  
+  jagalId       String?
+  jagal         Jagal?    @relation("JagalToPenyembelihan", fields: [jagalId], references: [id])
+  
+  rphId         String?
+  rph           RPH?      @relation("RPHToPenyembelihan", fields: [rphId], references: [id])
+  
+  penerimaType  EntityType
+  penerimaId    String
+  
+  distributorId String?
+  distributor   Distributor? @relation("DistributorToPenyembelihan", fields: [distributorId], references: [id])
+  
+  sapiId        String
+  sapi          Sapi      @relation(fields: [sapiId], references: [id])
+  
+  timestamp     DateTime  @default(now())
+  cid           String
+}
+
+model TransaksiPenjualan {
+  id                String     @id @default(uuid())
+  penjualId         String
+  pembeliId         String
+  penjualType       EntityType
+  pembeliType       EntityType
+  
+  sapiId            String?
+  sapi              Sapi?     @relation(fields: [sapiId], references: [id])
+  
+  dagingId          String?
+  daging            Daging?   @relation(fields: [dagingId], references: [id])
+  
+  jumlahQty         Int
+  type              String
+  timestamp         DateTime  @default(now())
+  cid               String
+  verifikasiPenjual Boolean   @default(false)
+  verifikasiPembeli Boolean   @default(false)
+  verifikasiRegulator Boolean @default(false)
+}
+
+model PengecekanSehat {
+  id          String     @id @default(uuid())
+  sapiId      String
+  sapi        Sapi       @relation(fields: [sapiId], references: [id])
+  
+  itemSehatId String
+  itemSehat   ItemSehat  @relation(fields: [itemSehatId], references: [id])
+  
+  boolean     Boolean
+  cid         String
+}
+
+model ItemSehat {
+  id        String     @id @default(uuid())
+  nama      String
+  deskripsi String?
+  kategori  String?
+  
+  pengecekan PengecekanSehat[]
+}
+
+model PengecekanHalalSehat {
+  id              String     @id @default(uuid())
+  sapiId          String
+  sapi            Sapi       @relation(fields: [sapiId], references: [id])
+  
+  itemHalalSehatId String
+  itemHalalSehat   ItemHalalSehat @relation(fields: [itemHalalSehatId], references: [id])
+  
+  boolean         Boolean
+  cid             String
+}
+
+model ItemHalalSehat {
+  id        String     @id @default(uuid())
+  nama      String
+  deskripsi String?
+  kategori  String?
+  
+  pengecekan PengecekanHalalSehat[]
+}
+
+model QR {
+  id          String     @id @default(uuid())
+  
+  sapiId      String?
+  sapi        Sapi?      @relation(fields: [sapiId], references: [id])
+  
+  dagingId    String?
+  daging      Daging?    @relation(fields: [dagingId], references: [id])
+  
+  urlQR       String
+}
