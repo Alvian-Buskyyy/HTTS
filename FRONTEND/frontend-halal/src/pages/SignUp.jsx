@@ -52,22 +52,42 @@ const SignUp = () => {
     }
   }, [formData.role]);
   
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Basic validation
-    if (formData.password !== formData.confirmPassword) {
-      alert('Kata sandi tidak cocok!');
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (formData.password !== formData.confirmPassword) {
+    alert('Kata sandi tidak cocok!');
+    return;
+  }
+
+  const payload = {
+    username: formData.username,
+    email: formData.email,
+    password: formData.password,
+    role: formData.role,
+    // ⬇️ WAJIB: kirim field profil sesuai role
+    profileData: dynamicFields,
+  };
+
+  try {
+    const response = await fetch('http://localhost:3000/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      alert(data.message || 'Terjadi kesalahan saat mendaftar');
       return;
     }
-    
-    // Here you would typically submit the data to your backend API
-    console.log('Form submitted:', { ...formData, ...dynamicFields });
     alert('Akun berhasil dibuat! Silakan masuk untuk melanjutkan.');
-    
-    // Redirect to landing page
     navigate('/');
-  };
+  } catch (err) {
+    console.error('Error saat sign up:', err);
+    alert('Terjadi kesalahan koneksi ke server.');
+  }
+};
   
   // Render dynamic fields based on selected role
   const renderDynamicFields = () => {

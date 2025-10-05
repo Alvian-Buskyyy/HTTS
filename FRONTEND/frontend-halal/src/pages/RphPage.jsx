@@ -1,3 +1,5 @@
+// DEPRECATED: Halaman RPH monolitik lama. Tidak lagi digunakan setelah migrasi ke struktur modular di modules/rph/pages.
+// Pertahankan sementara jika ada referensi lama, namun jangan impor file ini untuk dashboard baru.
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 

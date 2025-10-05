@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import PasarHewanSidebar from '../components/PasarHewanSidebar';
+import DashboardLayout from '../../../components/DashboardLayout';
 
 const PasarHewanSettings = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('account');
   
   // Account settings state
@@ -64,41 +63,9 @@ const PasarHewanSettings = () => {
   };
   
   return (
-    <div className="font-sans antialiased bg-gray-50">
-      <div className="min-h-screen flex flex-col lg:flex-row">
-        {/* Sidebar */}
-        <PasarHewanSidebar activeSection="settings" sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          {/* Top Navigation */}
-          <header className="bg-white shadow-sm z-10 sticky top-0">
-            <div className="flex items-center justify-between p-4">
-              <button 
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden text-gray-600 focus:outline-none"
-              >
-                <i className="fas fa-bars text-xl"></i>
-              </button>
-              <div className="flex items-center space-x-4">
-                <button className="text-gray-500 focus:outline-none">
-                  <i className="fas fa-bell text-xl"></i>
-                </button>
-                <div className="relative">
-                  <div className="flex items-center space-x-2 cursor-pointer">
-                    <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
-                      <i className="fas fa-user"></i>
-                    </div>
-                    <span className="text-gray-700 font-medium">Pasar Hewan Al-Falah</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Settings Content */}
-          <main className="flex-1 p-6">
-            <h1 className="text-2xl font-semibold text-gray-800 mb-6">Pengaturan</h1>
+    <DashboardLayout title="Pengaturan Pasar Hewan" role="PASAR_HEWAN">
+      <div className="mt-4 p-6">
+        <h1 className="text-2xl font-semibold text-gray-800 mb-6 text-left">Pengaturan</h1>
             
             {/* Settings Navigation Tabs */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -467,14 +434,11 @@ const PasarHewanSettings = () => {
                 )}
               </div>
             </div>
-          </main>
-
-          <footer className="bg-white p-4 border-t text-center text-gray-500 text-sm">
-            &copy; 2025 Sistem Penelusuran Halalan Thoyyiban
-          </footer>
-        </div>
+        <footer className="bg-white p-4 border rounded-md text-center text-gray-500 text-sm mt-6">
+          &copy; 2025 Sistem Penelusuran Halalan Thoyyiban
+        </footer>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

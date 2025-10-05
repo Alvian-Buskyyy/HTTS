@@ -1,345 +1,338 @@
-import React, { useState } from 'react';
-import PasarHewanSidebar from '../components/PasarHewanSidebar';
+import React, { useEffect, useState } from 'react';
+import DashboardLayout from '../../../components/DashboardLayout';
 
 const PasarHewanHealth = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Sample data for health verifications
-  const [pendingVerifications, setPendingVerifications] = useState([
-    { id: 'HT-2023-0051', type: 'Sapi Betina', source: 'Peternakan Ahmad', arrivalDate: '15 Jul 2025', weight: 315, status: 'Menunggu' }
-  ]);
-  
-  const [verificationHistory, setVerificationHistory] = useState([
-    { id: 'HT-2023-0054', type: 'Sapi Betina', source: 'Peternakan Ahmad', verifiedDate: '16 Jul 2025', weight: 325, status: 'Terverifikasi' },
-    { id: 'HT-2023-0053', type: 'Sapi Jantan', source: 'Peternakan Salam', verifiedDate: '16 Jul 2025', weight: 410, status: 'Terverifikasi' },
-    { id: 'HT-2023-0050', type: 'Sapi Jantan', source: 'Peternakan Wijaya', verifiedDate: '14 Jul 2025', weight: 390, status: 'Terverifikasi' },
-    { id: 'HT-2023-0049', type: 'Sapi Betina', source: 'Peternakan Ahmad', verifiedDate: '14 Jul 2025', weight: 330, status: 'Terverifikasi' }
-  ]);
-
-  // Toggle health verification modal state
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const API_BASE = 'http://localhost:3000';
+  // State
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [verificationHistory, setVerificationHistory] = useState([]);
   const [selectedCattle, setSelectedCattle] = useState(null);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [formData, setFormData] = useState({
+    kondisi: '',
+    suhu: '',
+    pmk: false,
+    antraks: false,
+    brucellosis: false,
+    parasit: false,
+    catatan: '',
+    dokter: ''
+  });
+  const [successMessage, setSuccessMessage] = useState('');
+  const [itemSehatId, setItemSehatId] = useState('');
+
+  // Helpers
+  const TEMP_MIN = 37.5;
+  const TEMP_MAX = 39.5;
+  const isTempNormal = (val) => {
+    const t = parseFloat(val);
+    if (Number.isNaN(t)) return null;
+    return t >= TEMP_MIN && t <= TEMP_MAX;
+  };
+  const computeStatusLabel = (data) => {
+    const anyDisease = data.pmk || data.antraks || data.brucellosis || data.parasit;
+    const tempOk = isTempNormal(data.suhu);
+    const kondisiBaik = ['Sangat Baik', 'Baik'].includes(data.kondisi);
+    if (!data.kondisi || !data.suhu) return 'Lengkapi Data';
+    if (!tempOk || anyDisease || !kondisiBaik) return 'Butuh Pemeriksaan Lanjut';
+    return 'Layak Sehat';
+  };
+
+  // Load pending from localStorage cattleList
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cattleList') || '[]');
+      const pending = stored
+        .filter((c) => c.healthStatus === 'perlu_periksa' || c.healthStatus === 'sakit')
+        .slice(0, 10)
+        .map((c) => ({
+          id: c.id,
+          type: c.jenis === 'other' ? c.customJenis : c.jenis,
+          weight: c.berat || 0,
+          source: 'Kandang/Asal Sesuai Data',
+          arrivalDate: c.tanggalLahir ? new Date(c.tanggalLahir).toLocaleDateString('id-ID') : '-'
+        }));
+      setPendingVerifications(pending);
+    } catch (e) {
+      console.error(e);
+    }
+    // Load default ItemSehat for clinical verification
+    (async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_BASE}/itemSehat`, { headers });
+        const list = await res.json();
+        if (Array.isArray(list) && list.length) {
+          const klinis = list.find(i => String(i.nama||'').toLowerCase().includes('klinis')) || list[0];
+          setItemSehatId(klinis.id);
+        }
+      } catch {}
+    })();
+  }, []);
 
   const openVerificationModal = (cattle) => {
     setSelectedCattle(cattle);
+    setFormData({ kondisi: '', suhu: '', pmk: false, antraks: false, brucellosis: false, parasit: false, catatan: '', dokter: '' });
     setShowVerificationModal(true);
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCattle) return;
+    let created = null;
+    try {
+      let ensureItemId = itemSehatId;
+      if (!ensureItemId) {
+        const token = localStorage.getItem('token');
+        const headersC = { 'Content-Type': 'application/json' };
+        if (token) headersC['Authorization'] = `Bearer ${token}`;
+        const createRes = await fetch(`${API_BASE}/itemSehat`, { method: 'POST', headers: headersC, body: JSON.stringify({ nama: 'Pemeriksaan Klinis', kategori: 'Klinis' }) });
+        if (createRes.ok) { const it = await createRes.json(); ensureItemId = it.id; setItemSehatId(it.id); }
+      }
+      const okBoolean = computeStatusLabel(formData) === 'Layak Sehat';
+      const token = localStorage.getItem('token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const payload = { sapiId: selectedCattle.id, itemSehatId: ensureItemId, boolean: okBoolean };
+      const res = await fetch(`${API_BASE}/pengecekanSehat`, { method: 'POST', headers, body: JSON.stringify(payload) });
+      if (res.ok) created = await res.json();
+    } catch {}
+
+    const record = {
+      id: selectedCattle.id,
+      type: selectedCattle.type,
+      source: selectedCattle.source,
+      verifiedDate: new Date().toLocaleDateString('id-ID'),
+      weight: selectedCattle.weight,
+      status: 'Terverifikasi',
+      cid: created?.cid || '',
+      detail: { ...formData }
+    };
+    setPendingVerifications((prev) => prev.filter((p) => p.id !== selectedCattle.id));
+    setVerificationHistory((prev) => [record, ...prev]);
+    setShowVerificationModal(false);
+    setSelectedCattle(null);
+    setSuccessMessage(`Verifikasi kesehatan untuk ${record.id} berhasil disimpan.`);
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
   return (
-    <div className="font-sans antialiased bg-gray-50">
-      <div className="min-h-screen flex flex-col lg:flex-row">
-        {/* Sidebar */}
-        <PasarHewanSidebar activeSection="health" sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          {/* Top Navigation */}
-          <header className="bg-white shadow-sm z-10 sticky top-0">
-            <div className="flex items-center justify-between p-4">
-              <button 
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden text-gray-600 focus:outline-none"
-              >
-                <i className="fas fa-bars text-xl"></i>
-              </button>
-              <div className="flex items-center space-x-4">
-                <button className="text-gray-500 focus:outline-none">
-                  <i className="fas fa-bell text-xl"></i>
-                </button>
-                <div className="relative">
-                  <div className="flex items-center space-x-2 cursor-pointer">
-                    <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
-                      <i className="fas fa-user"></i>
-                    </div>
-                    <span className="text-gray-700 font-medium">Pasar Hewan Al-Falah</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Dashboard Content */}
-          <main className="flex-1 p-6">
-            <h1 className="text-2xl font-semibold text-gray-800 mb-6">Verifikasi Kesehatan Ternak</h1>
-
-            {/* Health Metrics Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">Ternak Terverifikasi</p>
-                    <h3 className="text-2xl font-bold text-gray-800">{verificationHistory.length}</h3>
-                  </div>
-                  <div className="bg-green-100 p-3 rounded-full">
-                    <i className="fas fa-check-circle text-green-500 text-xl"></i>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-yellow-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">Menunggu Verifikasi</p>
-                    <h3 className="text-2xl font-bold text-gray-800">{pendingVerifications.length}</h3>
-                  </div>
-                  <div className="bg-yellow-100 p-3 rounded-full">
-                    <i className="fas fa-clock text-yellow-500 text-xl"></i>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-primary">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">Total Verifikasi Bulan Ini</p>
-                    <h3 className="text-2xl font-bold text-gray-800">32</h3>
-                  </div>
-                  <div className="bg-blue-100 p-3 rounded-full">
-                    <i className="fas fa-calendar-check text-primary text-xl"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Pending Verifications */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Menunggu Verifikasi</h2>
-              
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Ternak</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sumber</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Tiba</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berat (kg)</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {pendingVerifications.map((cattle) => (
-                      <tr key={cattle.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.type}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.source}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.arrivalDate}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.weight}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
-                            {cattle.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button 
-                            className="bg-primary text-white px-3 py-1 rounded-md hover:bg-primaryDark transition"
-                            onClick={() => openVerificationModal(cattle)}
-                          >
-                            Verifikasi
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {pendingVerifications.length === 0 && (
-                      <tr>
-                        <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                          Tidak ada ternak yang menunggu verifikasi saat ini
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Verification History */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Riwayat Verifikasi</h2>
-              
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Ternak</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sumber</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Verifikasi</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berat (kg)</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {verificationHistory.map((cattle) => (
-                      <tr key={cattle.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.type}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.source}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.verifiedDate}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cattle.weight}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                            {cattle.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button className="text-primary hover:text-primaryDark">
-                            <i className="fas fa-file-alt mr-1"></i> Lihat Detail
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              <div className="flex items-center justify-between mt-6">
-                <div className="text-sm text-gray-500">
-                  Menampilkan halaman 1 dari 4
-                </div>
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-500 text-sm">Sebelumnya</button>
-                  <button className="px-3 py-1 border border-gray-300 rounded-md bg-primary text-white text-sm">1</button>
-                  <button className="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-500 text-sm">2</button>
-                  <button className="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-500 text-sm">3</button>
-                  <button className="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-500 text-sm">Selanjutnya</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Health Verification Modal */}
-            {showVerificationModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-semibold text-gray-800">
-                      Verifikasi Kesehatan Ternak #{selectedCattle?.id}
-                    </h3>
-                    <button 
-                      onClick={() => setShowVerificationModal(false)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <i className="fas fa-times text-xl"></i>
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">ID Ternak</p>
-                        <p className="font-semibold">{selectedCattle?.id}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Jenis</p>
-                        <p className="font-semibold">{selectedCattle?.type}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Sumber</p>
-                        <p className="font-semibold">{selectedCattle?.source}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Tanggal Tiba</p>
-                        <p className="font-semibold">{selectedCattle?.arrivalDate}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Berat (kg)</p>
-                        <p className="font-semibold">{selectedCattle?.weight}</p>
-                      </div>
-                    </div>
-
-                    <hr className="my-4" />
-                    
-                    <form className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Kondisi Fisik</label>
-                        <select className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary">
-                          <option value="">Pilih Kondisi</option>
-                          <option value="Sangat Baik">Sangat Baik</option>
-                          <option value="Baik">Baik</option>
-                          <option value="Cukup">Cukup</option>
-                          <option value="Kurang">Kurang</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Suhu Tubuh (°C)</label>
-                        <input 
-                          type="number" 
-                          step="0.1"
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="Misal: 38.5"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pemeriksaan Penyakit</label>
-                        <div className="space-y-2">
-                          <div className="flex items-center">
-                            <input type="checkbox" id="disease1" className="mr-2" />
-                            <label htmlFor="disease1">Bebas Penyakit Mulut dan Kuku (PMK)</label>
-                          </div>
-                          <div className="flex items-center">
-                            <input type="checkbox" id="disease2" className="mr-2" />
-                            <label htmlFor="disease2">Bebas Antraks</label>
-                          </div>
-                          <div className="flex items-center">
-                            <input type="checkbox" id="disease3" className="mr-2" />
-                            <label htmlFor="disease3">Bebas Brucellosis</label>
-                          </div>
-                          <div className="flex items-center">
-                            <input type="checkbox" id="disease4" className="mr-2" />
-                            <label htmlFor="disease4">Bebas Parasit</label>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Pemeriksaan</label>
-                        <textarea 
-                          rows="3" 
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="Masukkan hasil pemeriksaan secara detail..."
-                        ></textarea>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Dokter Hewan Pemeriksa</label>
-                        <input 
-                          type="text" 
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="Nama dokter hewan"
-                        />
-                      </div>
-                      
-                      <div className="flex items-center justify-end space-x-3 pt-4">
-                        <button 
-                          type="button"
-                          onClick={() => setShowVerificationModal(false)}
-                          className="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 transition"
-                        >
-                          Batal
-                        </button>
-                        <button 
-                          type="submit"
-                          className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark transition"
-                        >
-                          Simpan Verifikasi
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            )}
-          </main>
-
-          <footer className="bg-white p-4 border-t text-center text-gray-500 text-sm">
-            &copy; 2025 Sistem Penelusuran Halalan Thoyyiban
-          </footer>
+    <DashboardLayout title="Pemeriksaan & Verifikasi Kesehatan" role="PASAR_HEWAN">
+      <div className="mt-2">
+        <div className="mb-6">
+          <p className="text-sm text-gray-600 leading-relaxed text-center whitespace-nowrap">Kelola proses pemeriksaan kesehatan ternak. Lakukan verifikasi untuk memperbarui status kesehatan.</p>
         </div>
+
+        {successMessage && (
+          <div className="mb-6 p-4 rounded-md border border-green-400 bg-green-100 text-green-700 text-sm">
+            <i className="fas fa-check-circle mr-2"></i>{successMessage}
+          </div>
+        )}
+
+        {/* Ringkasan */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-yellow-500">
+            <p className="text-sm text-gray-500">Menunggu Pemeriksaan</p>
+            <p className="text-3xl font-bold text-yellow-600">{pendingVerifications.length}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500">
+            <p className="text-sm text-gray-500">Terverifikasi</p>
+            <p className="text-3xl font-bold text-green-600">{verificationHistory.length}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-primary">
+            <p className="text-sm text-gray-500">Total Pemeriksaan (Sesi Ini)</p>
+            <p className="text-3xl font-bold text-primary">{verificationHistory.length + pendingVerifications.length}</p>
+          </div>
+        </div>
+
+        {/* Pending */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Perlu Pemeriksaan</h2>
+          <div className="overflow-x-auto rounded-lg">
+            <table className="min-w-full table-auto divide-y divide-gray-200 text-left">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Sapi</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asal</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Lahir</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berat (kg)</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Tindakan</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {pendingVerifications.map((c) => (
+                  <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3 whitespace-nowrap text-sm font-medium text-primary text-left align-middle">{c.id}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{c.type}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{c.source}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{c.arrivalDate}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{c.weight}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-left align-middle">
+                      <button onClick={() => openVerificationModal(c)} title="Periksa Kesehatan" className="p-2 rounded-md border border-primary/30 text-primary hover:bg-primary/10" aria-label="Periksa Kesehatan">
+                        <i className="fas fa-stethoscope"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {pendingVerifications.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-4 text-left text-sm text-gray-500">Tidak ada sapi yang perlu diperiksa.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* History */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Riwayat Pemeriksaan</h2>
+          <div className="overflow-x-auto rounded-lg">
+            <table className="min-w-full table-auto divide-y divide-gray-200 text-left">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Sapi</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Verifikasi</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berat (kg)</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CID</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kondisi</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dokter</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {verificationHistory.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3 whitespace-nowrap text-sm font-medium text-primary text-left align-middle">{r.id}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{r.type}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{r.verifiedDate}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{r.weight}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-left align-middle">
+                      {r.cid ? (
+                        <a className="text-blue-600 hover:underline" href={`https://ipfs.io/ipfs/${r.cid}`} target="_blank" rel="noreferrer">
+                          {String(r.cid).slice(0,6)}...{String(r.cid).slice(-6)}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{r.detail.kondisi || '-'}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-700 text-left align-middle">{r.detail.dokter || '-'}</td>
+                  </tr>
+                ))}
+                {verificationHistory.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-4 text-left text-sm text-gray-500">Belum ada pemeriksaan dilakukan.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Modal */}
+        {showVerificationModal && selectedCattle && (
+          <div className="fixed inset-0 flex items-center justify-center z-[60] p-4 backdrop-blur-sm bg-transparent" onClick={() => setShowVerificationModal(false)}>
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <i className="fas fa-stethoscope text-primary"></i>
+                    Pemeriksaan Sapi #{selectedCattle.id}
+                  </h3>
+                  <p className="text-xs text-gray-500">Isi data pemeriksaan di bawah ini. Kolom bertanda bintang wajib diisi.</p>
+                </div>
+                <span className={`px-2 py-1 text-xs rounded-full ${computeStatusLabel(formData) === 'Layak Sehat' ? 'bg-green-100 text-green-700' : computeStatusLabel(formData) === 'Lengkapi Data' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  {computeStatusLabel(formData)}
+                </span>
+              </div>
+
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Form kiri (2 kolom) */}
+                <div className="md:col-span-2 space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Kondisi Fisik <span className="text-red-500">*</span></label>
+                      <select value={formData.kondisi} onChange={(e) => setFormData({ ...formData, kondisi: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" required>
+                        <option value="">Pilih Kondisi</option>
+                        <option value="Sangat Baik">Sangat Baik</option>
+                        <option value="Baik">Baik</option>
+                        <option value="Cukup">Cukup</option>
+                        <option value="Kurang">Kurang</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Suhu Tubuh (°C) <span className="text-red-500">*</span></label>
+                      <input type="number" step="0.1" value={formData.suhu} onChange={(e) => setFormData({ ...formData, suhu: e.target.value })} placeholder="Misal: 38.5" className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 ${isTempNormal(formData.suhu) === false ? 'border-yellow-400 focus:ring-yellow-400' : 'border-gray-300 focus:ring-primary'}`} required />
+                      <p className={`mt-1 text-xs ${isTempNormal(formData.suhu) === null ? 'text-gray-400' : isTempNormal(formData.suhu) ? 'text-green-600' : 'text-yellow-700'}`}>
+                        Normal: {TEMP_MIN}–{TEMP_MAX} °C {isTempNormal(formData.suhu) === null ? '' : isTempNormal(formData.suhu) ? '• Suhu normal' : '• Di luar rentang normal'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Pemeriksaan Penyakit</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      {[
+                        { key: 'pmk', label: 'PMK', icon: 'fa-virus' },
+                        { key: 'antraks', label: 'Antraks', icon: 'fa-biohazard' },
+                        { key: 'brucellosis', label: 'Brucellosis', icon: 'fa-shield-virus' },
+                        { key: 'parasit', label: 'Parasit', icon: 'fa-bug' }
+                      ].map((item) => (
+                        <button type="button" key={item.key} onClick={() => setFormData((prev) => ({ ...prev, [item.key]: !prev[item.key] }))} className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md border transition ${formData[item.key] ? 'bg-red-50 border-red-300 text-red-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`} aria-pressed={formData[item.key]}>
+                          <i className={`fas ${item.icon}`}></i>
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Pemeriksaan</label>
+                    <textarea rows="3" value={formData.catatan} onChange={(e) => setFormData({ ...formData, catatan: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Masukkan hasil pemeriksaan secara detail..."></textarea>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dokter Hewan Pemeriksa <span className="text-red-500">*</span></label>
+                    <input list="daftar-dokter" type="text" value={formData.dokter} onChange={(e) => setFormData({ ...formData, dokter: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Nama dokter hewan" required />
+                    <datalist id="daftar-dokter">
+                      <option value="drh. Andi" />
+                      <option value="drh. Sari" />
+                      <option value="drh. Bima" />
+                    </datalist>
+                  </div>
+                </div>
+
+                {/* Ringkasan kanan */}
+                <aside className="md:col-span-1">
+                  <div className="border rounded-lg p-4 bg-gray-50">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Ringkasan</h4>
+                    <ul className="text-sm space-y-2">
+                      <li className="flex justify-between gap-3"><span className="text-gray-500">ID</span><span className="font-medium text-gray-800">{selectedCattle.id}</span></li>
+                      <li className="flex justify-between gap-3"><span className="text-gray-500">Kondisi</span><span className="font-medium">{formData.kondisi || '-'}</span></li>
+                      <li className="flex justify-between gap-3"><span className="text-gray-500">Suhu</span><span className={`font-medium ${isTempNormal(formData.suhu) === false ? 'text-yellow-700' : ''}`}>{formData.suhu || '-'}</span></li>
+                      <li className="flex justify-between gap-3"><span className="text-gray-500">Penyakit</span><span className="font-medium">{(['pmk', 'antraks', 'brucellosis', 'parasit'].filter((k) => formData[k]).length > 0 ? 'Ada indikasi' : 'Tidak ada')}</span></li>
+                      <li className="flex justify-between gap-3"><span className="text-gray-500">Dokter</span><span className="font-medium">{formData.dokter || '-'}</span></li>
+                    </ul>
+                  </div>
+                </aside>
+
+                {/* Footer actions */}
+                <div className="md:col-span-3 flex justify-between items-center pt-2">
+                  <button type="button" onClick={() => setFormData({ kondisi: '', suhu: '', pmk: false, antraks: false, brucellosis: false, parasit: false, catatan: '', dokter: '' })} className="text-sm text-gray-600 hover:underline">Reset formulir</button>
+                  <div className="flex gap-3">
+                    <button type="button" onClick={() => setShowVerificationModal(false)} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Batal</button>
+                    <button type="submit" disabled={!formData.kondisi || !formData.suhu || !formData.dokter} className={`px-4 py-2 rounded-md text-white ${(!formData.kondisi || !formData.suhu || !formData.dokter) ? 'bg-primary/60 cursor-not-allowed' : 'bg-primary hover:bg-primaryDark'}`}>Simpan Verifikasi</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

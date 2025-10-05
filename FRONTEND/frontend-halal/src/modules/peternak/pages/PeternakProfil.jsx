@@ -192,13 +192,11 @@ const PeternakProfil = () => {
   return (
     <DashboardLayout title="Profil Peternak" role="PETERNAK">
       {loading ? (
-        <div className="flex items-center justify-center h-60 mt-16">
+        <div className="flex items-center justify-center h-60 mt-6">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <div className="mt-16 p-6">
-          <h1 className="text-2xl font-semibold text-blue-600 mb-6">Profil Peternak</h1>
-          
+        <div className="mt-4 p-6">
           {/* Profile Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {/* Profile Card */}

@@ -13,6 +13,9 @@ const PeternakSapi = () => {
   });
   const [showCattleModal, setShowCattleModal] = useState(false);
   const [selectedCattle, setSelectedCattle] = useState(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editCattle, setEditCattle] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState('');
   const [stats, setStats] = useState({
     totalSapi: 0,
     availableForSale: 0,
@@ -110,6 +113,8 @@ const PeternakSapi = () => {
     if (cattle) {
       setSelectedCattle(cattle);
       setShowCattleModal(true);
+  setShowEditForm(false);
+  setEditCattle(null);
     }
   };
   
@@ -117,6 +122,109 @@ const PeternakSapi = () => {
   const closeCattleModal = () => {
     setShowCattleModal(false);
     setSelectedCattle(null);
+    setShowEditForm(false);
+    setEditCattle(null);
+    setSaveSuccess('');
+  };
+
+  // Open edit form prefilled
+  const openEditForm = (cattle) => {
+    const c = cattle || selectedCattle;
+    if (!c) return;
+    setSelectedCattle(c);
+    setShowCattleModal(true);
+    setShowEditForm(true);
+    setEditCattle({
+      id: c.id,
+      type: c.type || '',
+      gender: c.gender || '',
+      age: c.age ?? 0,
+      weight: c.weight ?? 0,
+      birthDate: c.birthDate || new Date().toISOString().split('T')[0],
+      healthStatus: c.healthStatus || 'sehat',
+      availability: c.availability || 'available',
+      origin: c.origin || 'beli',
+      motherId: c.motherId || '',
+      fatherId: c.fatherId || ''
+    });
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditCattle(prev => ({ ...prev, [field]: value }));
+  };
+
+  const recomputeStats = (list) => ({
+    totalSapi: list.length,
+    availableForSale: list.filter(item => item.availability === 'available').length,
+    inTransaction: list.filter(item => item.availability === 'in_transaction').length,
+    needHealthCheck: list.filter(item => item.healthStatus === 'perlu_periksa' || item.healthStatus === 'sakit').length
+  });
+
+  const handleSaveEdit = () => {
+    if (!editCattle) return;
+    // Basic validation
+    if (!editCattle.type || !editCattle.gender) {
+      alert('Jenis dan Jenis Kelamin wajib diisi');
+      return;
+    }
+
+    try {
+      const knownTypes = ['Sapi Limosin','Sapi Simental','Sapi Brahman','Sapi PO','Sapi Bali','Sapi Madura','Sapi Angus','Sapi BX'];
+      const isKnown = knownTypes.includes(editCattle.type);
+
+      // Update localStorage raw structure
+      const storedJSON = localStorage.getItem('cattleList');
+      let raw = [];
+      if (storedJSON) raw = JSON.parse(storedJSON);
+      const updatedRaw = raw.map(item => {
+        if (item.id === editCattle.id) {
+          return {
+            ...item,
+            id: editCattle.id,
+            jenis: isKnown ? editCattle.type : 'other',
+            customJenis: isKnown ? '' : editCattle.type,
+            kelamin: editCattle.gender,
+            tanggalLahir: editCattle.birthDate,
+            berat: Number(editCattle.weight) || 0,
+            healthStatus: editCattle.healthStatus,
+            availability: editCattle.availability,
+            origin: editCattle.origin,
+            motherId: editCattle.origin === 'lahir_sendiri' ? (editCattle.motherId || '') : '',
+            fatherId: editCattle.origin === 'lahir_sendiri' ? (editCattle.fatherId || '') : '',
+            usia: Number(editCattle.age) || 0
+          };
+        }
+        return item;
+      });
+      localStorage.setItem('cattleList', JSON.stringify(updatedRaw));
+
+      // Update UI list
+      const updatedUI = cattleData.map(c => c.id === editCattle.id ? {
+        ...c,
+        type: editCattle.type,
+        gender: editCattle.gender,
+        age: Number(editCattle.age) || 0,
+        weight: Number(editCattle.weight) || 0,
+        birthDate: editCattle.birthDate,
+        healthStatus: editCattle.healthStatus,
+        availability: editCattle.availability,
+        origin: editCattle.origin,
+        motherId: editCattle.origin === 'lahir_sendiri' ? editCattle.motherId : '',
+        fatherId: editCattle.origin === 'lahir_sendiri' ? editCattle.fatherId : ''
+      } : c);
+      setCattleData(updatedUI);
+      setStats(recomputeStats(updatedUI));
+
+      // Update selected and feedback
+      const updatedSelected = updatedUI.find(c => c.id === editCattle.id);
+      setSelectedCattle(updatedSelected);
+      setSaveSuccess('Perubahan berhasil disimpan.');
+      setShowEditForm(false);
+      setTimeout(() => setSaveSuccess(''), 2000);
+    } catch (e) {
+      console.error('Error saving edit:', e);
+      alert('Gagal menyimpan perubahan.');
+    }
   };
   
   // Delete cattle function
@@ -197,13 +305,11 @@ const PeternakSapi = () => {
   return (
     <DashboardLayout title="Data Sapi" role="PETERNAK">
       {loading ? (
-        <div className="flex items-center justify-center h-60 mt-16">
+        <div className="flex items-center justify-center h-60 mt-6">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <div className="mt-16 p-6">
-          <h1 className="text-2xl font-semibold text-blue-600 mb-6">Inventaris Sapi</h1>
-          
+        <div className="mt-4 p-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-lg shadow-sm p-6">
@@ -373,6 +479,7 @@ const PeternakSapi = () => {
                           </button>
                           <button 
                             className="text-yellow-600 hover:text-yellow-800 mr-2"
+                            onClick={() => openEditForm(cattle)}
                             title="Edit Data"
                           >
                             <i className="fas fa-edit"></i>
@@ -395,15 +502,26 @@ const PeternakSapi = () => {
           
           {/* Detail Modal */}
           {showCattleModal && selectedCattle && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 flex items-center justify-center z-[60] p-4 backdrop-blur-sm bg-transparent">
               <div className="bg-white rounded-lg max-w-2xl w-full mx-4 overflow-hidden">
-                <div className="bg-primary text-white px-6 py-4 flex justify-between items-center">
-                  <h3 className="text-xl font-semibold">Detail Sapi</h3>
-                  <button onClick={closeCattleModal} className="text-white hover:text-gray-200">
-                    <i className="fas fa-times"></i>
+                <div className="bg-white px-6 py-4 flex justify-between items-center border-b">
+                  <h3 className="text-xl font-medium text-blue-600">Detail Sapi</h3>
+                  <button 
+                    onClick={closeCattleModal} 
+                    className="text-blue-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 p-2 rounded-full hover:bg-blue-50"
+                    aria-label="Tutup detail sapi"
+                    title="Tutup"
+                  >
+                    <i className="fas fa-times text-xl"></i>
                   </button>
                 </div>
                 <div className="p-6">
+                  {saveSuccess && (
+                    <div className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded text-sm">
+                      <i className="fas fa-check-circle mr-2"></i>{saveSuccess}
+                    </div>
+                  )}
+                  {!showEditForm && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <p className="text-sm text-gray-500">ID Sapi</p>
@@ -442,8 +560,9 @@ const PeternakSapi = () => {
                       <p className="font-semibold">{selectedCattle.origin === 'lahir_sendiri' ? 'Lahir di Peternakan' : 'Dibeli'}</p>
                     </div>
                   </div>
+                  )}
                   
-                  {selectedCattle.origin === 'lahir_sendiri' && (
+                  {selectedCattle.origin === 'lahir_sendiri' && !showEditForm && (
                     <div className="mb-4">
                       <h4 className="font-semibold text-gray-700 mb-2">Informasi Silsilah</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -458,28 +577,104 @@ const PeternakSapi = () => {
                       </div>
                     </div>
                   )}
+
+                  {showEditForm && editCattle && (
+                    <form className="space-y-4" onSubmit={(e)=>{e.preventDefault(); handleSaveEdit();}}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">ID Sapi</label>
+                          <input value={editCattle.id} disabled className="w-full border border-gray-300 rounded-md py-2 px-3 bg-gray-100" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Jenis</label>
+                          <input value={editCattle.type} onChange={e=>handleEditChange('type', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
+                          <select value={editCattle.gender} onChange={e=>handleEditChange('gender', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                            <option value="">Pilih</option>
+                            <option value="Jantan">Jantan</option>
+                            <option value="Betina">Betina</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Umur (tahun)</label>
+                          <input type="number" min="0" value={editCattle.age} onChange={e=>handleEditChange('age', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Berat (kg)</label>
+                          <input type="number" min="0" value={editCattle.weight} onChange={e=>handleEditChange('weight', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label>
+                          <input type="date" value={(editCattle.birthDate || '').slice(0,10)} onChange={e=>handleEditChange('birthDate', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Status Kesehatan</label>
+                          <select value={editCattle.healthStatus} onChange={e=>handleEditChange('healthStatus', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                            <option value="sehat">Sehat</option>
+                            <option value="perlu_periksa">Perlu Periksa</option>
+                            <option value="sakit">Sakit</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Ketersediaan</label>
+                          <select value={editCattle.availability} onChange={e=>handleEditChange('availability', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                            <option value="available">Tersedia</option>
+                            <option value="in_transaction">Dalam Transaksi</option>
+                            <option value="sold">Terjual</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Asal</label>
+                          <select value={editCattle.origin} onChange={e=>handleEditChange('origin', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                            <option value="beli">Dibeli</option>
+                            <option value="lahir_sendiri">Lahir di Peternakan</option>
+                          </select>
+                        </div>
+                        {editCattle.origin === 'lahir_sendiri' && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">ID Induk</label>
+                              <input value={editCattle.motherId} onChange={e=>handleEditChange('motherId', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">ID Pejantan</label>
+                              <input value={editCattle.fatherId} onChange={e=>handleEditChange('fatherId', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button type="button" className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={()=>{setShowEditForm(false); setEditCattle(null);}}>Batal</button>
+                        <button type="submit" className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700">Simpan</button>
+                      </div>
+                    </form>
+                  )}
                   
                   {/* Action buttons */}
-                  <div className="flex justify-end space-x-3 mt-6">
-                    <button className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
-                      Cetak QR
-                    </button>
-                    <button className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600">
-                      Edit Data
-                    </button>
-                    {selectedCattle.availability === 'available' && (
-                      <Link 
-                        to="/peternak/transaksi" 
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                        onClick={() => {
-                          // Store the selected cattle info in localStorage for access in PeternakTransaksi
-                          localStorage.setItem('selectedCattleForSale', JSON.stringify(selectedCattle));
-                        }}
-                      >
-                        Jual Sapi
-                      </Link>
-                    )}
-                  </div>
+                  {!showEditForm && (
+                    <div className="flex justify-end space-x-3 mt-6">
+                      <button className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
+                        Cetak QR
+                      </button>
+                      <button className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600" onClick={()=>openEditForm(selectedCattle)}>
+                        Edit Data
+                      </button>
+                      {selectedCattle.availability === 'available' && (
+                        <Link 
+                          to="/peternak/transaksi" 
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                          onClick={() => {
+                            // Store the selected cattle info in localStorage for access in PeternakTransaksi
+                            localStorage.setItem('selectedCattleForSale', JSON.stringify(selectedCattle));
+                          }}
+                        >
+                          Jual Sapi
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

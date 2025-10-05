@@ -185,10 +185,8 @@ const PeternakDaftarTernak = () => {
   const fatherOptions = availableCattle.filter(cattle => cattle.kelamin === 'Jantan');
 
   return (
-    <DashboardLayout title="Daftar Ternak Baru" role="PETERNAK">
-      <div className="mt-16 p-6">
-        <h1 className="text-2xl font-semibold text-blue-600 mb-6">Daftarkan Ternak Baru</h1>
-
+    <DashboardLayout title="Daftarkan Ternak" role="PETERNAK">
+  <div className="mt-4 p-6">
         {success ? (
           <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
             <p className="font-bold">Berhasil!</p>
@@ -197,6 +195,7 @@ const PeternakDaftarTernak = () => {
         ) : null}
 
         <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Form Pendaftaran Ternak</h2>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>

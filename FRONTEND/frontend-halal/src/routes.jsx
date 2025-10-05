@@ -16,13 +16,35 @@ import LandingPage from './modules/common/pages/LandingPage';
 // Role-specific pages
 import PeternakDashboard from './modules/peternak/pages/PeternakDashboard';
 import PeternakTransaksi from './modules/peternak/pages/PeternakTransaksi';
+import PeternakHealth from './modules/peternak/pages/PeternakHealth';
 import PasarHewanPage from './modules/pasarHewan/pages/PasarHewanPage';
 import JagalPage from './modules/jagal/pages/JagalPage';
-import RphPage from './modules/rph/pages/RphPage';
+// Legacy RphPage removed after adopting new modular RPH dashboard
 import DistributorPage from './modules/distributor/pages/DistributorPage';
 import HorecaPage from './modules/horeca/pages/HorecaPage';
-import RegulatorPage from './modules/regulator/pages/RegulatorPage';
-import AdminPage from './modules/user/pages/AdminPage';
+// Regulator module pages
+import RegulatorDashboard from './modules/regulator/pages/RegulatorDashboard';
+import RegulatorMonitoring from './modules/regulator/pages/RegulatorMonitoring';
+import RegulatorReport from './modules/regulator/pages/RegulatorReport';
+import RegulatorEntities from './modules/regulator/pages/RegulatorEntities';
+import RegulatorSapi from './modules/regulator/pages/RegulatorSapi';
+import RegulatorDaging from './modules/regulator/pages/RegulatorDaging';
+import RegulatorTransaksi from './modules/regulator/pages/RegulatorTransaksi';
+import RegulatorItems from './modules/regulator/pages/RegulatorItems';
+import RegulatorQR from './modules/regulator/pages/RegulatorQR';
+import RegulatorProfile from './modules/regulator/pages/RegulatorProfile';
+import RegulatorSettings from './modules/regulator/pages/RegulatorSettings';
+// Admin module pages
+import AdminDashboard from './modules/admin/pages/AdminDashboard';
+import AdminUsers from './modules/admin/pages/AdminUsers';
+import AdminEntities from './modules/admin/pages/AdminEntities';
+import AdminSapi from './modules/admin/pages/AdminSapi';
+import AdminDaging from './modules/admin/pages/AdminDaging';
+import AdminTransaksi from './modules/admin/pages/AdminTransaksi';
+import AdminItems from './modules/admin/pages/AdminItems';
+import AdminQR from './modules/admin/pages/AdminQR';
+import AdminProfile from './modules/admin/pages/AdminProfile';
+import AdminSettings from './modules/admin/pages/AdminSettings';
 
 const AppRoutes = () => {
   return (
@@ -41,6 +63,8 @@ const AppRoutes = () => {
               <Routes>
                 <Route path="/" element={<PeternakDashboard />} />
                 <Route path="/transaksi" element={<PeternakTransaksi />} />
+                {/* Use absolute path to match sidebar link */}
+                <Route path="/peternak/kesehatan" element={<PeternakHealth />} />
                 {/* Add nested routes for peternak here */}
               </Routes>
             </DashboardLayout>
@@ -76,19 +100,7 @@ const AppRoutes = () => {
         }
       />
 
-      <Route
-        path="/rph/*"
-        element={
-          <PrivateRoute roles={['rph']}>
-            <DashboardLayout>
-              <Routes>
-                <Route path="/" element={<RphPage />} />
-                {/* Add nested routes for RPH here */}
-              </Routes>
-            </DashboardLayout>
-          </PrivateRoute>
-        }
-      />
+  {/* RPH modular routes now handled in App.jsx with role guard */}
 
       <Route
         path="/distributor/*"
@@ -121,13 +133,21 @@ const AppRoutes = () => {
       <Route
         path="/regulator/*"
         element={
-          <PrivateRoute roles={['regulator']}>
-            <DashboardLayout>
-              <Routes>
-                <Route path="/" element={<RegulatorPage />} />
-                {/* Add nested routes for regulator here */}
-              </Routes>
-            </DashboardLayout>
+          <PrivateRoute roles={['REGULATOR']}>
+            <Routes>
+              <Route path="/" element={<RegulatorDashboard />} />
+              <Route path="/dashboard" element={<RegulatorDashboard />} />
+              <Route path="/monitoring" element={<RegulatorMonitoring />} />
+              <Route path="/report" element={<RegulatorReport />} />
+              <Route path="/entities" element={<RegulatorEntities />} />
+              <Route path="/sapi" element={<RegulatorSapi />} />
+              <Route path="/daging" element={<RegulatorDaging />} />
+              <Route path="/transaksi" element={<RegulatorTransaksi />} />
+              <Route path="/items" element={<RegulatorItems />} />
+              <Route path="/qr" element={<RegulatorQR />} />
+              <Route path="/profil" element={<RegulatorProfile />} />
+              <Route path="/pengaturan" element={<RegulatorSettings />} />
+            </Routes>
           </PrivateRoute>
         }
       />
@@ -135,13 +155,20 @@ const AppRoutes = () => {
       <Route
         path="/admin/*"
         element={
-          <PrivateRoute roles={['admin']}>
-            <DashboardLayout>
-              <Routes>
-                <Route path="/" element={<AdminPage />} />
-                {/* Add nested routes for admin here */}
-              </Routes>
-            </DashboardLayout>
+          <PrivateRoute roles={['ADMIN']}>
+            <Routes>
+              <Route path="/" element={<AdminDashboard />} />
+              <Route path="/dashboard" element={<AdminDashboard />} />
+              <Route path="/users" element={<AdminUsers />} />
+              <Route path="/entities" element={<AdminEntities />} />
+              <Route path="/sapi" element={<AdminSapi />} />
+              <Route path="/daging" element={<AdminDaging />} />
+              <Route path="/transaksi" element={<AdminTransaksi />} />
+              <Route path="/items" element={<AdminItems />} />
+              <Route path="/qr" element={<AdminQR />} />
+              <Route path="/profil" element={<AdminProfile />} />
+              <Route path="/pengaturan" element={<AdminSettings />} />
+            </Routes>
           </PrivateRoute>
         }
       />

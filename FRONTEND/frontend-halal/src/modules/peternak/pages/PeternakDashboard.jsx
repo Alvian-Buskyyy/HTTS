@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { Link, useNavigate } from 'react-router-dom';
-import ExampleModal from '../components/ExampleModal';
+// import ExampleModal from '../components/ExampleModal'; // dihapus dari UI utama
 import ModalCard from '../../../components/ModalCard';
+import SupplyChainTracker from '../components/SupplyChainTracker';
 
 // CSS untuk animasi loading
 const loadingCSS = `
@@ -26,6 +27,10 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [selectedCattle, setSelectedCattle] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  // Edit cattle modal state
+  const [showEditCattleModal, setShowEditCattleModal] = useState(false);
+  const [editCattle, setEditCattle] = useState(null);
+  const [editSaveSuccess, setEditSaveSuccess] = useState('');
   const [showNewTransactionForm, setShowNewTransactionForm] = useState(false);
   const [transactionSuccess, setTransactionSuccess] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
@@ -119,7 +124,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
       diagnosis: 'Vaksinasi rutin berhasil',
       treatment: 'Vaksin PMK'
     }
-  ]);
+  ]); // fixed missing closing bracket
   
   // State for authentication and transaction modal
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -195,6 +200,14 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
       setShowCattleModal(true);
     }
   };
+  // Open edit cattle modal
+  const openEditCattle = (cattleId) => {
+    const cattle = cattleData.find(c => c.id === cattleId);
+    if (cattle) {
+      setEditCattle({ ...cattle });
+      setShowEditCattleModal(true);
+    }
+  };
   
   // Handle transaction detail modal
   const viewTransactionDetail = (transactionId) => {
@@ -214,6 +227,94 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
   const closeTransactionModal = () => {
     setShowTransactionModal(false);
     setSelectedTransaction(null);
+  };
+  const closeEditCattleModal = () => {
+    setShowEditCattleModal(false);
+    setEditCattle(null);
+    setEditSaveSuccess('');
+  };
+
+  // Edit helpers
+  const handleEditChange = (field, value) => {
+    setEditCattle(prev => ({ ...prev, [field]: value }));
+  };
+
+  const recomputeStats = (list) => {
+    const currentDate = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(currentDate.getMonth() - 1);
+    return {
+      totalSapi: list.length,
+      sapiBaru: list.filter(c => new Date(c.birthDate) > oneMonthAgo).length,
+      sapiTerjual: list.filter(c => c.availability === 'sold').length,
+      periksaKesehatan: list.filter(c => c.healthStatus === 'perlu_periksa' || c.healthStatus === 'sakit').length,
+    };
+  };
+
+  const handleSaveEdit = () => {
+    if (!editCattle) return;
+    if (!editCattle.type || !editCattle.gender) {
+      alert('Jenis dan Jenis Kelamin wajib diisi');
+      return;
+    }
+
+    try {
+      const knownTypes = ['Sapi Limosin','Sapi Simental','Sapi Brahman','Sapi PO','Sapi Bali','Sapi Madura','Sapi Angus','Sapi BX'];
+      const isKnown = knownTypes.includes(editCattle.type);
+
+      // Update raw structure in localStorage
+      const storedJSON = localStorage.getItem('cattleList');
+      let raw = [];
+      if (storedJSON) raw = JSON.parse(storedJSON);
+      const updatedRaw = raw.map(item => {
+        if (item.id === editCattle.id) {
+          return {
+            ...item,
+            id: editCattle.id,
+            jenis: isKnown ? editCattle.type : 'other',
+            customJenis: isKnown ? '' : editCattle.type,
+            kelamin: editCattle.gender,
+            tanggalLahir: editCattle.birthDate,
+            berat: Number(editCattle.weight) || 0,
+            healthStatus: editCattle.healthStatus,
+            availability: editCattle.availability,
+            origin: editCattle.origin,
+            motherId: editCattle.origin === 'lahir_sendiri' ? (editCattle.motherId || '') : '',
+            fatherId: editCattle.origin === 'lahir_sendiri' ? (editCattle.fatherId || '') : '',
+            usia: Number(editCattle.age) || 0
+          };
+        }
+        return item;
+      });
+      localStorage.setItem('cattleList', JSON.stringify(updatedRaw));
+
+      // Update UI state mapping
+      const updatedUI = cattleData.map(c => c.id === editCattle.id ? {
+        ...c,
+        type: editCattle.type,
+        gender: editCattle.gender,
+        age: Number(editCattle.age) || 0,
+        weight: Number(editCattle.weight) || 0,
+        birthDate: editCattle.birthDate,
+        healthStatus: editCattle.healthStatus,
+        availability: editCattle.availability,
+        origin: editCattle.origin,
+        motherId: editCattle.origin === 'lahir_sendiri' ? editCattle.motherId : '',
+        fatherId: editCattle.origin === 'lahir_sendiri' ? editCattle.fatherId : ''
+      } : c);
+      setCattleData(updatedUI);
+      setStats(recomputeStats(updatedUI));
+
+      setEditSaveSuccess('Perubahan berhasil disimpan.');
+      // Close modal after brief delay
+      setTimeout(() => {
+        setEditSaveSuccess('');
+        closeEditCattleModal();
+      }, 1200);
+    } catch (e) {
+      console.error('Error saving edit:', e);
+      alert('Gagal menyimpan perubahan.');
+    }
   };
   
   // Request verification for a transaction
@@ -393,18 +494,40 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
   }, []);
 
   // Utility components
-  const StatCard = ({ title, value, icon, bgColor, iconColor }) => (
-    <div className="bg-white rounded-lg shadow-sm p-6 flex items-center">
-      <div className={`rounded-full ${bgColor} p-3 mr-4`}>
-        <i className={`${icon} ${iconColor} text-xl`}></i>
+  const StatCard = ({ title, value, icon, desc, color = 'primary' }) => {
+    const colorMap = {
+      primary: 'bg-primary/10 text-primary',
+      green: 'bg-green-100 text-green-600',
+      blue: 'bg-blue-100 text-blue-600',
+      yellow: 'bg-yellow-100 text-yellow-600',
+      red: 'bg-red-100 text-red-600',
+      purple: 'bg-purple-100 text-purple-600'
+    };
+    return (
+      <div className="bg-white rounded-xl shadow-sm px-5 py-4 flex items-center gap-4 border border-gray-100 hover:shadow-md transition-shadow">
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorMap[color]}`}> 
+          <i className={`${icon} text-xl`}></i>
+        </div>
+        <div className="text-left">
+          <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">{title}</p>
+            <p className="text-2xl font-semibold text-gray-800 leading-tight">{value}</p>
+          {desc && <p className="text-[11px] text-gray-400 mt-0.5">{desc}</p>}
+        </div>
       </div>
-      <div className="text-left">
-        <p className="text-gray-500 text-sm">{title}</p>
-        <p className="text-2xl font-semibold text-gray-800">{value}</p>
+    );
+  };
+  
+  const EmptyState = ({ icon, title, desc, action }) => (
+    <div className="text-center py-12">
+      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+        <i className={`${icon} text-2xl text-gray-400`}></i>
       </div>
+      <h3 className="text-lg font-semibold text-gray-700 mb-1">{title}</h3>
+      <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">{desc}</p>
+      {action}
     </div>
   );
-  
+
   // Utility functions for badge rendering
   const getHealthStatusBadge = (status) => {
     const badges = {
@@ -520,313 +643,163 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
   
   return (
     <DashboardLayout title="Dasbor Peternak" role="PETERNAK">
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          .loader {
-            border-top-color: #60A5FA;
-            animation: spin 1s linear infinite;
-          }
-        `}
-      </style>
+      <style>{loadingCSS}</style>
       {loading ? (
         <div className="flex items-center justify-center h-60 mt-16">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <div className="mt-16 p-6">
-          {/* Dashboard Section */}
+        <div className="mt-4 p-4 md:p-6 space-y-8">{/* reduced top margin from mt-8 to mt-4 */}
+          {/* HEADER + STATS */}
           {activeSection === 'dashboard' && (
-            <div>
-              <h1 className="text-2xl font-semibold text-blue-600 mb-6">Dasbor Peternak</h1>
-              
-              {/* Example Modal Component */}
-              <div className="mb-8 bg-white p-6 rounded-lg shadow-sm">
-                <h2 className="text-lg font-semibold mb-4">Contoh Modal Card</h2>
-                <p className="text-gray-600 mb-4">
-                  Berikut ini adalah contoh penggunaan komponen ModalCard dengan background opacity 30%
-                </p>
-                <ExampleModal />
-              </div>
-              
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard 
-                  title="Total Ternak" 
-                  value={stats.totalSapi} 
-                  icon="fas fa-cow" 
-                  bgColor="bg-primaryLight"
-                  iconColor="text-primary" 
-                />
-                <StatCard 
-                  title="Baru Lahir" 
-                  value={stats.sapiBaru} 
-                  icon="fas fa-baby-carriage" 
-                  bgColor="bg-green-100"
-                  iconColor="text-green-600" 
-                />
-                <StatCard 
-                  title="Terjual Bulan Ini" 
-                  value={stats.sapiTerjual} 
-                  icon="fas fa-exchange-alt" 
-                  bgColor="bg-blue-100"
-                  iconColor="text-blue-600" 
-                />
-                <StatCard 
-                  title="Pemeriksaan Kesehatan Tertunda" 
-                  value={stats.periksaKesehatan} 
-                  icon="fas fa-heartbeat" 
-                  bgColor="bg-yellow-100"
-                  iconColor="text-yellow-600" 
-                />
-              </div>
-          
-              {/* Action Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Link
-                  to="/peternak/sapi"
-                  className="bg-white rounded-lg shadow-sm p-6 flex items-center cursor-pointer hover:shadow-md transition-shadow border-l-4 border-blue-500"
-                >
-                  <div className="bg-blue-100 rounded-full p-3 mr-4">
-                    <i className="fas fa-list text-blue-600 text-xl"></i>
-                  </div>
-                  <div className="text-left">
-                    <h3 className="font-semibold text-gray-800">Daftar Ternak</h3>
-                    <p className="text-sm text-gray-500">Lihat semua ternak</p>
-                  </div>
-                </Link>
-                <Link 
-                  to="/peternak/daftar-ternak"
-                  className="bg-white rounded-lg shadow-sm p-6 flex items-center cursor-pointer hover:shadow-md transition-shadow border-l-4 border-green-500"
-                >
-                  <div className="bg-green-100 rounded-full p-3 mr-4">
-                    <i className="fas fa-plus-circle text-green-600 text-xl"></i>
-                  </div>
-                  <div className="text-left">
-                    <h3 className="font-semibold text-gray-800">Daftarkan Ternak</h3>
-                    <p className="text-sm text-gray-500">Tambahkan ternak baru</p>
-                  </div>
-                </Link>
-                {isAuthenticated ? (
-                  <Link 
-                    to="/peternak/transaksi"
-                    className="bg-white rounded-lg shadow-sm p-6 flex items-center cursor-pointer hover:shadow-md transition-shadow border-l-4 border-purple-500 relative"
-                    onClick={() => {
-                      localStorage.setItem('showTransactionFromDashboard', 'true');
-                      localStorage.setItem('transactionAuth', 'true');
-                    }}
-                  >
-                    <div className="bg-purple-100 rounded-full p-3 mr-4">
-                      <i className="fas fa-exchange-alt text-purple-600 text-xl"></i>
-                    </div>
-                    <div className="text-left">
-                      <h3 className="font-semibold text-gray-800">Transaksi</h3>
-                      <p className="text-sm text-gray-500">Kelola penjualan ternak</p>
-                    </div>
+            <div className="space-y-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="space-y-1">
+                  <h1 className="text-3xl font-bold text-gray-800 tracking-tight m-0">Ringkasan Peternakan</h1>
+                  <p className="text-sm text-gray-500 m-0 leading-snug">Pantau kondisi ternak dan aktivitas terbaru Anda.</p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Link to="/peternak/daftar-ternak" className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primaryDark flex items-center gap-2">
+                    <i className="fas fa-plus"></i> Tambah Ternak
                   </Link>
+                  <Link to="/peternak/transaksi" onClick={() => localStorage.setItem('transactionAuth','true')} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 flex items-center gap-2">
+                    <i className="fas fa-exchange-alt"></i> Transaksi
+                  </Link>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                <StatCard title="Total Ternak" value={stats.totalSapi} icon="fas fa-cow" color="primary" desc="Semua jenis" />
+                <StatCard title="Baru Lahir" value={stats.sapiBaru} icon="fas fa-baby-carriage" color="green" desc="30 hari terakhir" />
+                <StatCard title="Terjual" value={stats.sapiTerjual} icon="fas fa-exchange-alt" color="blue" desc="Bulan ini" />
+                <StatCard title="Perlu Periksa" value={stats.periksaKesehatan} icon="fas fa-heartbeat" color="red" desc="Butuh perhatian" />
+              </div>
+
+              {/* Rantai Pasok Realtime */}
+              <SupplyChainTracker cattleOptions={cattleData} />
+
+              {/* INVENTARIS RINGKAS */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2"><i className="fas fa-clipboard-list text-primary"></i> Inventaris Ternak</h2>
+                  <Link to="/peternak/sapi" className="text-primary text-sm hover:underline flex items-center gap-1"><i className="fas fa-eye"></i> Lihat Semua</Link>
+                </div>
+                {cattleData.length === 0 ? (
+                  <EmptyState icon="fas fa-cow" title="Belum Ada Data Ternak" desc="Tambahkan ternak pertama Anda untuk mulai memantau kesehatan dan transaksi." action={<Link to="/peternak/daftar-ternak" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark"><i className="fas fa-plus mr-1"></i> Tambah Ternak</Link>} />
                 ) : (
-                  <Link 
-                    to="/peternak/login?redirect=/peternak/transaksi"
-                    className="bg-white rounded-lg shadow-sm p-6 flex items-center cursor-pointer hover:shadow-md transition-shadow border-l-4 border-purple-500 relative"
-                  >
-                    <div className="absolute top-2 right-2">
-                      <i className="fas fa-lock text-purple-400 text-sm"></i>
-                    </div>
-                    <div className="bg-purple-100 rounded-full p-3 mr-4">
-                      <i className="fas fa-exchange-alt text-purple-600 text-xl"></i>
-                    </div>
-                    <div className="text-left">
-                      <h3 className="font-semibold text-gray-800">Transaksi</h3>
-                      <p className="text-sm text-gray-500">Kelola penjualan ternak</p>
-                      <span className="text-xs text-purple-600">Memerlukan autentikasi</span>
-                    </div>
-                  </Link>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
+                          <th className="px-4 py-2 text-left">ID Sapi</th>
+                          <th className="px-4 py-2 text-left">Jenis</th>
+                          <th className="px-4 py-2 text-left">Jenis Kelamin</th>
+                          <th className="px-4 py-2 text-left">Umur</th>
+                          <th className="px-4 py-2 text-left">Berat (kg)</th>
+                          <th className="px-4 py-2 text-left">Status Kesehatan</th>
+                          <th className="px-4 py-2 text-left">Ketersediaan</th>
+                          <th className="px-4 py-2 text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {cattleData.slice(0,5).map(c => (
+                          <tr key={c.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium text-primary text-left">{c.id}</td>
+                            <td className="px-4 py-2 text-left">{c.type}</td>
+                            <td className="px-4 py-2 text-left">{c.gender}</td>
+                            <td className="px-4 py-2 text-left">{c.age} tahun</td>
+                            <td className="px-4 py-2 text-left">{c.weight} kg</td>
+                            <td className="px-4 py-2 text-left">{getHealthStatusBadge(c.healthStatus)}</td>
+                            <td className="px-4 py-2 text-left">{getAvailabilityBadge(c.availability)}</td>
+                            <td className="px-4 py-2 text-center w-20">
+                              <div className="inline-flex items-center justify-center gap-2">
+                                <button onClick={()=>viewCattleDetail(c.id)} className="px-2 py-1 rounded border text-primary border-primary/30 hover:bg-primary/10" title="Detail">
+                                  <i className="fas fa-eye"></i>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
 
-              {/* Recent Activity & QR Code Generator */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                {/* Recent Activity */}
-                <div className="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
-                  <div className="flex justify-between items-center mb-5">
-                    <h2 className="text-xl font-semibold text-blue-600">Aktivitas Terbaru</h2>
-                    <Link to="/peternak/aktivitas" className="text-primary text-sm hover:underline">Lihat Semua</Link>
-                  </div>
-                  <div className="space-y-4 text-left">
-                    {isAuthenticated ? (
-                      <Link 
-                        to="/peternak/transaksi"
-                        className="flex items-start p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => {
-                          localStorage.setItem('showTransactionFromDashboard', 'true');
-                          localStorage.setItem('transactionAuth', 'true');
-                        }}
-                      >
-                        <div className="rounded-full bg-blue-100 p-2 mr-4">
-                          <i className="fas fa-exchange-alt text-blue-600"></i>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-base">
-                            <span className="font-medium">Transaksi Penjualan</span> - 2 sapi telah terjual ke Pasar Hewan Al-Falah
-                          </p>
-                          <p className="text-sm text-gray-500 mt-1">15 Jul 2025, 10:23</p>
-                        </div>
-                      </Link>
-                    ) : (
-                      <Link 
-                        to="/peternak/login?redirect=/peternak/transaksi"
-                        className="flex items-start p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="rounded-full bg-blue-100 p-2 mr-4">
-                          <i className="fas fa-exchange-alt text-blue-600"></i>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-base">
-                            <span className="font-medium">Transaksi Penjualan</span> - 2 sapi telah terjual ke Pasar Hewan Al-Falah
-                          </p>
-                          <p className="text-sm text-gray-500 mt-1">15 Jul 2025, 10:23</p>
-                          <p className="text-xs text-purple-600 mt-1">Klik untuk autentikasi</p>
-                        </div>
-                      </Link>
-                    )}
-                    <div className="flex items-start p-4 bg-gray-50 rounded-lg">
-                      <div className="rounded-full bg-green-100 p-2 mr-4">
-                        <i className="fas fa-heartbeat text-green-600"></i>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-base">
-                          <span className="font-medium">Pemeriksaan Kesehatan</span> - 5 ternak telah diperiksa oleh dokter hewan
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">14 Jul 2025, 14:30</p>
-                      </div>
+              {/* AKTIVITAS & QR */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2 space-y-6">
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2"><i className="fas fa-history text-primary"></i> Aktivitas Terbaru</h2>
+                      <Link to="/peternak/aktivitas" className="text-primary text-xs hover:underline">Lihat Semua</Link>
                     </div>
-                    <div className="flex items-start p-4 bg-gray-50 rounded-lg">
-                      <div className="rounded-full bg-yellow-100 p-2 mr-4">
-                        <i className="fas fa-plus-circle text-yellow-600"></i>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-base">
-                          <span className="font-medium">Ternak Baru</span> - 3 anak sapi baru telah didaftarkan
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">12 Jul 2025, 09:15</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* QR Code Generator */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-4">Generator Kode QR</h2>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pilih ID Ternak</label>
-                    <select className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
-                      <option value="">-- Pilih ID Ternak --</option>
-                      {cattleData.map(cattle => (
-                        <option key={cattle.id} value={cattle.id}>{cattle.id}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="text-center mb-4">
-                    <div className="bg-gray-100 w-40 h-40 mx-auto flex flex-col items-center justify-center rounded-lg">
-                      <i className="fas fa-qrcode text-6xl text-primary mb-2"></i>
-                      <p className="text-xs text-gray-500">Pratinjau QR</p>
-                    </div>
-                  </div>
-                  <button className="w-full bg-primary text-white py-2 rounded-md hover:bg-primaryDark transition mb-2">
-                    Buat Kode QR
-                  </button>
-                  <button className="w-full border border-primary text-primary py-2 rounded-md hover:bg-primaryLight transition">
-                    Unduh
-                  </button>
-                </div>
-              </div>
-              
-              {/* Cattle Inventory Overview */}
-              <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-semibold text-gray-800">Inventaris Ternak - Ringkasan</h2>
-                  <Link 
-                    to="/peternak/sapi"
-                    className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm inline-block"
-                  >
-                    <i className="fas fa-eye mr-1"></i> Lihat Semua
-                  </Link>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium q text-gray-500 uppercase tracking-wider">ID Sapi</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis Kelamin</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Umur (tahun)</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berat (kg)</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Kesehatan</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {loading ? (
-                        <tr>
-                          <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
-                            <div className="flex justify-center">
-                              <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8"></div>
-                            </div>
-                            <p className="mt-2">Memuat data...</p>
-                          </td>
-                        </tr>
-                      ) : cattleData.length === 0 ? (
-                        <tr>
-                          <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
-                            Tidak ada data sapi yang ditemukan. Silahkan tambahkan sapi baru.
-                          </td>
-                        </tr>
-                      ) : (
-                        // Hanya menampilkan 5 ternak teratas
-                        cattleData.slice(0, 5).map(cattle => (
-                          <tr key={cattle.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 text-left text-sm font-medium text-primary">{cattle.id}</td>
-                            <td className="px-6 py-4 text-left text-sm text-gray-700">{cattle.type}</td>
-                            <td className="px-6 py-4 text-left text-sm text-gray-700">{cattle.gender}</td>
-                            <td className="px-6 py-4 text-left text-sm text-gray-700">{cattle.age} tahun</td>
-                            <td className="px-6 py-4 text-left text-sm text-gray-700">{cattle.weight} kg</td>
-                            <td className="px-6 py-4 text-left">
-                              {getHealthStatusBadge(cattle.healthStatus)}
-                            </td>
-                            <td className="px-6 py-4 text-left text-sm font-medium">
-                              <button 
-                                className="text-primary hover:text-primaryDark" 
-                                onClick={() => viewCattleDetail(cattle.id)}
-                                title="Lihat Detail"
-                              >
-                                <i className="fas fa-eye"></i>
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                    <div className="space-y-3">
+                      {cattleData.length > 0 && (
+                        <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center"><i className="fas fa-exchange-alt text-blue-600"></i></div>
+                          <div className="flex-1 text-left">
+                            <p className="text-sm text-gray-700"><span className="font-medium">Transaksi Penjualan</span> - contoh aktivitas</p>
+                            <p className="text-[11px] text-gray-400 mt-1">15 Jul 2025</p>
+                          </div>
+                        </div>
                       )}
-                    </tbody>
-                  </table>
+                      <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
+                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center"><i className="fas fa-heartbeat text-green-600"></i></div>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm text-gray-700"><span className="font-medium">Pemeriksaan Kesehatan</span> - 5 ternak sudah diperiksa</p>
+                          <p className="text-[11px] text-gray-400 mt-1">14 Jul 2025</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
+                        <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center"><i className="fas fa-plus text-yellow-600"></i></div>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm text-gray-700"><span className="font-medium">Ternak Baru</span> - 3 anak sapi didaftarkan</p>
+                          <p className="text-[11px] text-gray-400 mt-1">12 Jul 2025</p>
+                        </div>
+                      </div>
+                      {cattleData.length === 0 && (
+                        <EmptyState icon="fas fa-inbox" title="Belum Ada Aktivitas" desc="Aktivitas akan muncul setelah Anda menambahkan dan mengelola ternak." />
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-4 flex justify-between items-center">
-                  <Link to="/peternak/daftar-ternak" className="text-green-600 hover:underline text-sm font-medium">
-                    <i className="fas fa-plus-circle mr-1"></i> Tambah Ternak Baru
-                  </Link>
-                  <Link to="/peternak/sapi" className="text-primary hover:underline text-sm font-medium">Lihat Semua Ternak</Link>
+                <div>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><i className="fas fa-qrcode text-primary"></i> QR Ternak</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Pilih ID Ternak</label>
+                        <select className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                          <option value="">-- Pilih --</option>
+                          {cattleData.map(c => <option key={c.id}>{c.id}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="bg-gray-100 w-40 h-40 flex items-center justify-center rounded-lg">
+                          <i className="fas fa-qrcode text-5xl text-primary"></i>
+                        </div>
+                        <p className="text-[11px] text-gray-400">Pratinjau</p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button className="w-full bg-primary text-white py-2 rounded-md text-sm hover:bg-primaryDark"><i className="fas fa-magic mr-1"></i> Buat QR</button>
+                        <button className="w-full border border-primary text-primary py-2 rounded-md text-sm hover:bg-primary/10"><i className="fas fa-download mr-1"></i> Unduh</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           )}
-
+          
           {/* Inventaris Ternak Section */}
           {activeSection === 'cattle' && (
             <div>
               <h1 className="text-2xl font-semibold text-blue-600 mb-6">Inventaris Ternak</h1>
-              
+              {/* Rantai Pasok Realtime */}
+              <div className="mb-6">
+                <SupplyChainTracker cattleOptions={cattleData} />
+              </div>
               {/* Filter dan Statistik */}
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
                 <div className="bg-white rounded-lg shadow-sm p-6">
@@ -871,7 +844,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
               <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Ternak</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Jenis Ternak</label>
                     <select className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
                       <option value="">Semua Jenis</option>
                       <option value="sapi">Sapi</option>
@@ -880,7 +853,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status Kesehatan</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Status Kesehatan</label>
                     <select className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
                       <option value="">Semua Status</option>
                       <option value="sehat">Sehat</option>
@@ -889,7 +862,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ketersediaan</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Ketersediaan</label>
                     <select className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary">
                       <option value="">Semua</option>
                       <option value="available">Tersedia</option>
@@ -898,7 +871,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pencarian</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Pencarian</label>
                     <input type="text" placeholder="Cari ID, jenis..." className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary" />
                   </div>
                 </div>
@@ -951,7 +924,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
                             >
                               <i className="fas fa-eye"></i>
                             </button>
-                            <button className="text-yellow-600 hover:text-yellow-800 mr-2">
+                            <button className="text-yellow-600 hover:text-yellow-800 mr-2" onClick={() => openEditCattle(cattle.id)}>
                               <i className="fas fa-edit"></i>
                             </button>
                             <button className="text-red-600 hover:text-red-800">
@@ -1272,7 +1245,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
                             <td className="px-6 py-4 whitespace-nowrap">
                               {getVerificationBadge(transaction.verificationStatus)}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-left">
                               <button 
                                 className="text-primary hover:text-primaryDark mr-2" 
                                 onClick={() => viewTransactionDetail(transaction.id)}
@@ -1414,7 +1387,7 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
                                 'Belum ada'
                               }
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-left">
                               {transaction.verificationStatus === 'waiting_buyer' && (
                                 <button 
                                   className="bg-primary text-white px-3 py-1 rounded text-xs hover:bg-primaryDark mr-1"
@@ -1601,316 +1574,227 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
             </div>
           )}
 
-          {/* Cattle Detail Modal */}
+          {/* MODAL DETAIL TERNAK */}
           {showCattleModal && selectedCattle && (
             <ModalCard
               isOpen={showCattleModal}
               onClose={closeCattleModal}
-              title={<span>Detail Ternak <span className="text-blue-900 font-bold">{selectedCattle.id}</span></span>}
+              title={`Detail Ternak ${selectedCattle.id}`}
               size="lg"
+              footer={<button onClick={closeCattleModal} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark">Tutup</button>}
             >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Jenis</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedCattle.type}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Jenis Kelamin</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedCattle.gender}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Tanggal Lahir</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{formatDate(selectedCattle.birthDate)}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Umur</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedCattle.age} tahun</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Berat</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedCattle.weight} kg</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Status Kesehatan</p>
-                      <div className="mt-1">
-                        {getHealthStatusBadge(selectedCattle.healthStatus)}
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Ketersediaan</p>
-                      <div className="mt-1">
-                        {getAvailabilityBadge(selectedCattle.availability)}
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Asal</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedCattle.origin === 'lahir_sendiri' ? 'Lahir di peternakan' : 'Dibeli'}</p>
-                    </div>
-                    {selectedCattle.motherId && (
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <p className="text-sm text-blue-700 font-medium">ID Induk</p>
-                        <p className="text-gray-800 font-semibold text-base mt-1">{selectedCattle.motherId}</p>
-                      </div>
-                    )}
-                    {selectedCattle.fatherId && (
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <p className="text-sm text-blue-700 font-medium">ID Pejantan</p>
-                        <p className="text-gray-800 font-semibold text-base mt-1">{selectedCattle.fatherId}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-8">
-                    <h3 className="text-lg font-semibold text-blue-700 mb-3">Riwayat Kesehatan</h3>
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Jenis</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Dokter</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {healthRecords
-                          .filter(record => record.cattleId === selectedCattle.id)
-                          .map((record, idx) => (
-                            <tr key={idx}>
-                              <td className="px-4 py-2 text-sm text-gray-900">{formatDate(record.date)}</td>
-                              <td className="px-4 py-2 text-sm">{getExamTypeBadge(record.examType)}</td>
-                              <td className="px-4 py-2 text-sm">{getHealthStatusBadge(record.healthStatus)}</td>
-                              <td className="px-4 py-2 text-sm text-gray-900">{record.veterinarian}</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-gray-50 rounded-md p-3">
+                  <p className="text-[11px] text-gray-500">Jenis</p>
+                  <p className="font-semibold text-gray-800">{selectedCattle.type}</p>
                 </div>
-                <div className="p-5 border-t border-blue-100 flex justify-end space-x-3">
-                  <button onClick={closeCattleModal} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
-                    Tutup
-                  </button>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm">
-                    <i className="fas fa-edit mr-1"></i> Edit Data
-                  </button>
+                <div className="bg-gray-50 rounded-md p-3">
+                  <p className="text-[11px] text-gray-500">Kelamin</p>
+                  <p className="font-semibold text-gray-800">{selectedCattle.gender}</p>
+                </div>
+                <div className="bg-gray-50 rounded-md p-3">
+                  <p className="text-[11px] text-gray-500">Umur</p>
+                  <p className="font-semibold text-gray-800">{selectedCattle.age} th</p>
+                </div>
+                <div className="bg-gray-50 rounded-md p-3">
+                  <p className="text-[11px] text-gray-500">Berat</p>
+                  <p className="font-semibold text-gray-800">{selectedCattle.weight} kg</p>
+                </div>
+                <div className="bg-gray-50 rounded-md p-3">
+                  <p className="text-[11px] text-gray-500">Kesehatan</p>
+                  {getHealthStatusBadge(selectedCattle.healthStatus)}
+                </div>
+                <div className="bg-gray-50 rounded-md p-3">
+                  <p className="text-[11px] text-gray-500">Ketersediaan</p>
+                  {getAvailabilityBadge(selectedCattle.availability)}
                 </div>
               </div>
-            </div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Riwayat Kesehatan</h4>
+              <div className="overflow-x-auto border border-gray-100 rounded-md">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-gray-50 text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Tanggal</th>
+                      <th className="px-3 py-2 text-left">Jenis</th>
+                      <th className="px-3 py-2 text-left">Status</th>
+                      <th className="px-3 py-2 text-left">Dokter</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {healthRecords.filter(r=>r.cattleId===selectedCattle.id).map((r,i)=>(
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-3 py-2">{formatDate(r.date)}</td>
+                        <td className="px-3 py-2">{getExamTypeBadge(r.examType)}</td>
+                        <td className="px-3 py-2">{getHealthStatusBadge(r.healthStatus)}</td>
+                        <td className="px-3 py-2">{r.veterinarian}</td>
+                      </tr>
+                    ))}
+                    {healthRecords.filter(r=>r.cattleId===selectedCattle.id).length===0 && (
+                      <tr><td colSpan="4" className="px-3 py-4 text-center text-gray-400">Belum ada catatan</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </ModalCard>
           )}
 
-          {/* Transaction Detail Modal */}
+          {/* MODAL EDIT TERNAK - dengan tombol Simpan */}
+          {showEditCattleModal && editCattle && (
+            <ModalCard
+              isOpen={showEditCattleModal}
+              onClose={closeEditCattleModal}
+              title={`Edit Data ${editCattle.id}`}
+              size="lg"
+              footer={
+                <div className="flex justify-end gap-2">
+                  <button type="button" className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50" onClick={closeEditCattleModal}>Batal</button>
+                  <button type="button" onClick={handleSaveEdit} className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700"><i className="fas fa-save mr-1"></i> Simpan</button>
+                </div>
+              }
+            >
+              {editSaveSuccess && (
+                <div className="mb-3 p-2 rounded bg-green-50 text-green-700 text-sm">{editSaveSuccess}</div>
+              )}
+              <form onSubmit={(e)=>{e.preventDefault(); handleSaveEdit();}} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ID Sapi</label>
+                    <input value={editCattle.id} disabled className="w-full border border-gray-300 rounded-md py-2 px-3 bg-gray-100" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Jenis</label>
+                    <input value={editCattle.type} onChange={e=>handleEditChange('type', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
+                    <select value={editCattle.gender} onChange={e=>handleEditChange('gender', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                      <option value="">Pilih</option>
+                      <option value="Jantan">Jantan</option>
+                      <option value="Betina">Betina</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Umur (tahun)</label>
+                    <input type="number" min="0" value={editCattle.age} onChange={e=>handleEditChange('age', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Berat (kg)</label>
+                    <input type="number" min="0" value={editCattle.weight} onChange={e=>handleEditChange('weight', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label>
+                    <input type="date" value={(editCattle.birthDate || '').slice(0,10)} onChange={e=>handleEditChange('birthDate', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status Kesehatan</label>
+                    <select value={editCattle.healthStatus} onChange={e=>handleEditChange('healthStatus', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                      <option value="sehat">Sehat</option>
+                      <option value="perlu_periksa">Perlu Periksa</option>
+                      <option value="sakit">Sakit</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ketersediaan</label>
+                    <select value={editCattle.availability} onChange={e=>handleEditChange('availability', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                      <option value="available">Tersedia</option>
+                      <option value="in_transaction">Dalam Transaksi</option>
+                      <option value="sold">Terjual</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Asal</label>
+                    <select value={editCattle.origin} onChange={e=>handleEditChange('origin', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3">
+                      <option value="beli">Dibeli</option>
+                      <option value="lahir_sendiri">Lahir di Peternakan</option>
+                    </select>
+                  </div>
+                  {editCattle.origin === 'lahir_sendiri' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">ID Induk</label>
+                        <input value={editCattle.motherId || ''} onChange={e=>handleEditChange('motherId', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">ID Pejantan</label>
+                        <input value={editCattle.fatherId || ''} onChange={e=>handleEditChange('fatherId', e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3" />
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* Actions are in modal footer for visibility */}
+              </form>
+            </ModalCard>
+          )}
+
+          {/* MODAL DETAIL TRANSAKSI */}
           {showTransactionModal && selectedTransaction && (
-            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-auto border border-blue-100">
-                <div className="p-5 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-blue-700">Detail Transaksi <span className="text-blue-900 font-bold">{selectedTransaction.id}</span></h2>
-                  <button onClick={closeTransactionModal} className="text-gray-500 hover:text-red-600 transition-colors">
-                    <i className="fas fa-times"></i>
-                  </button>
+            <ModalCard
+              isOpen={showTransactionModal}
+              onClose={closeTransactionModal}
+              title={`Detail Transaksi ${selectedTransaction.id}`}
+              size="lg"
+              footer={<button onClick={closeTransactionModal} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark">Tutup</button>}
+            >
+              <div className="grid md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-[11px] text-gray-500">Tanggal</p>
+                  <p className="font-semibold text-gray-800">{formatDate(selectedTransaction.date)}</p>
                 </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Tanggal Transaksi</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{formatDate(selectedTransaction.date)}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Pembeli</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedTransaction.buyerName}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Jenis Pembeli</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedTransaction.buyerType}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">ID Ternak</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedTransaction.cattleId}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Jumlah</p>
-                      <p className="text-gray-800 font-semibold text-base mt-1">{selectedTransaction.quantity}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Status Transaksi</p>
-                      <div className="mt-1">
-                        {getTransactionStatusBadge(selectedTransaction.status)}
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Status Verifikasi</p>
-                      <div className="mt-1">
-                        {getVerificationBadge(selectedTransaction.verificationStatus)}
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Blockchain Hash</p>
-                      <p className="text-gray-800 text-base mt-1 break-all">
-                        {selectedTransaction.blockchainHash || 'Belum tercatat di blockchain'}
-                      </p>
-                    </div>
-                    <div className="md:col-span-2 bg-blue-50 p-4 rounded-lg">
-                      <p className="text-sm text-blue-700 font-medium">Catatan</p>
-                      <p className="text-gray-800 text-base mt-1">{selectedTransaction.notes}</p>
-                    </div>
-                  </div>
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-[11px] text-gray-500">Pembeli</p>
+                  <p className="font-semibold text-gray-800">{selectedTransaction.buyerName}</p>
                 </div>
-                <div className="p-5 border-t border-blue-100 flex justify-end space-x-3">
-                  <button onClick={closeTransactionModal} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
-                    Tutup
-                  </button>
-                  {selectedTransaction.status === 'pending' && (
-                    <button className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors shadow-sm">
-                      <i className="fas fa-ban mr-1"></i> Batalkan Transaksi
-                    </button>
-                  )}
-                  {selectedTransaction.verificationStatus === 'waiting_buyer' && (
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm">
-                      <i className="fas fa-check-circle mr-1"></i> Minta Verifikasi
-                    </button>
-                  )}
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-[11px] text-gray-500">Ternak</p>
+                  <p className="font-semibold text-gray-800">{selectedTransaction.cattleId}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-[11px] text-gray-500">Jumlah</p>
+                  <p className="font-semibold text-gray-800">{selectedTransaction.quantity}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-[11px] text-gray-500">Status Transaksi</p>
+                  {getTransactionStatusBadge(selectedTransaction.status)}
+                </div>
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-[11px] text-gray-500">Verifikasi</p>
+                  {getVerificationBadge(selectedTransaction.verificationStatus)}
                 </div>
               </div>
-            </div>
+              <div className="bg-gray-50 p-3 rounded-md mb-4">
+                <p className="text-[11px] text-gray-500 mb-1">Catatan</p>
+                <p className="text-sm text-gray-700 whitespace-pre-line">{selectedTransaction.notes || '-'}</p>
+              </div>
+            </ModalCard>
           )}
+
+          {/* AUTH MODAL Tetap */}
+          <ModalCard
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            title="Autentikasi Diperlukan"
+            size="md"
+            footer={
+              <div className="flex justify-end gap-2">
+                <button type="button" className="px-4 py-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50" onClick={()=>setShowAuthModal(false)}>Batal</button>
+                <button form="auth-form" type="submit" className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primaryDark">Verifikasi</button>
+              </div>
+            }
+          >
+            <p className="text-sm text-gray-600 mb-4">Masukkan kode autentikasi untuk mengakses fitur transaksi.</p>
+            {authError && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-3 py-2 rounded mb-3">{authError}</div>
+            )}
+            <form id="auth-form" onSubmit={handleAuthSubmit} className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Kode Autentikasi</label>
+                <input type="text" value={authCode} onChange={e=>setAuthCode(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="6 digit" required />
+                <p className="text-[11px] text-gray-400 mt-1">Demo: 123456</p>
+              </div>
+            </form>
+          </ModalCard>
         </div>
       )}
-
-      {/* Cattle Detail Modal */}
-      {showCattleModal && selectedCattle && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-0 border border-blue-100">
-            <div className="bg-primary text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Detail Sapi: {selectedCattle.id}</h2>
-              <button onClick={closeCattleModal} className="text-white hover:text-red-200 transition-colors">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-primary mb-3">Informasi Dasar</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">ID Sapi</p>
-                      <p className="text-gray-800 font-medium">{selectedCattle.id}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Jenis</p>
-                      <p className="text-gray-800">{selectedCattle.type}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Jenis Kelamin</p>
-                      <p className="text-gray-800">{selectedCattle.gender}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Umur</p>
-                      <p className="text-gray-800">{selectedCattle.age} tahun</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Berat</p>
-                      <p className="text-gray-800">{selectedCattle.weight} kg</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Status Kesehatan</p>
-                      <p>{getHealthStatusBadge(selectedCattle.healthStatus)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Status Ketersediaan</p>
-                      <p>{getAvailabilityBadge(selectedCattle.availability || 'available')}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Asal</p>
-                      <p className="text-gray-800">{selectedCattle.origin === 'beli' ? 'Pembelian' : 'Kelahiran'}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Parent Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-primary mb-3">Informasi Keturunan</h3>
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">ID Induk</p>
-                      <p className="text-gray-800">{selectedCattle.motherId || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">ID Pejantan</p>
-                      <p className="text-gray-800">{selectedCattle.fatherId || '-'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Action buttons */}
-              <div className="mt-6 flex justify-end space-x-3">
-                <button onClick={closeCattleModal} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
-                  Tutup
-                </button>
-                <Link to={`/peternak/sapi/edit/${selectedCattle.id}`} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark transition-colors shadow-sm">
-                  <i className="fas fa-edit mr-1"></i> Edit Data
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Authentication Modal */}
-      <ModalCard
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Autentikasi Diperlukan"
-        size="md"
-        footer={
-          <div className="flex justify-end">
-            <button
-              type="button"
-              className="border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 mr-2"
-              onClick={() => setShowAuthModal(false)}
-            >
-              Batal
-            </button>
-            <button
-              form="auth-form"
-              type="submit"
-              className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark"
-            >
-              Verifikasi
-            </button>
-          </div>
-        }
-      >
-        <p className="text-gray-600 mb-4">
-          Untuk mengakses fitur transaksi, masukkan kode autentikasi yang diberikan oleh sistem.
-        </p>
-        
-        {authError && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-            <p>{authError}</p>
-          </div>
-        )}
-        
-        <form id="auth-form" onSubmit={handleAuthSubmit}>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Kode Autentikasi
-            </label>
-            <input
-              type="text"
-              className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary"
-              value={authCode}
-              onChange={(e) => setAuthCode(e.target.value)}
-              placeholder="Masukkan kode 6 digit"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Untuk demo, gunakan kode: 123456
-            </p>
-          </div>
-        </form>
-      </ModalCard>
     </DashboardLayout>
   );
 };

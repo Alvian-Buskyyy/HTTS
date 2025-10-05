@@ -19,8 +19,6 @@ const PasarHewanSidebar = ({ activeSection, sidebarOpen, setSidebarOpen }) => {
     { id: 'ternak', label: 'Inventaris Ternak', icon: 'fa-cow', link: '/pasarhewan/ternak' },
     { id: 'transfer', label: 'Transfer Ternak', icon: 'fa-exchange-alt', link: '/pasarhewan/transfer' },
     { id: 'health', label: 'Verifikasi Kesehatan', icon: 'fa-stethoscope', link: '/pasarhewan/health' },
-    { id: 'profile', label: 'Profil', icon: 'fa-user-circle', link: '/pasarhewan/profile' },
-    { id: 'settings', label: 'Pengaturan', icon: 'fa-cog', link: '/pasarhewan/settings' }
   ];
 
   return (
@@ -61,7 +59,7 @@ const PasarHewanSidebar = ({ activeSection, sidebarOpen, setSidebarOpen }) => {
               <li key={item.id}>
                 <Link 
                   to={item.link}
-                  className={`flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 hover:text-primary transition ${activeSection === item.id ? 'text-primary bg-primaryLight font-medium border-r-4 border-primary' : ''}`}
+                  className={`flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 hover:text-primary transition border-r-4 ${activeSection === item.id ? 'text-primary bg-primary/10 font-medium border-primary' : 'border-transparent'}`}
                 >
                   <i className={`fas ${item.icon} w-5`}></i>
                   <span className="ml-3">{item.label}</span>
@@ -71,8 +69,22 @@ const PasarHewanSidebar = ({ activeSection, sidebarOpen, setSidebarOpen }) => {
           </ul>
         </nav>
         
-        {/* Logout Button */}
-        <div className="p-4 border-t">
+        {/* Bottom: Profile, Settings, Logout */}
+        <div className="p-4 border-t space-y-1">
+          <Link 
+            to="/pasarhewan/profile"
+            className={`flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-primary transition rounded-md ${activeSection === 'profile' ? 'text-primary bg-primaryLight font-medium' : ''}`}
+          >
+            <i className="fas fa-user-circle w-5"></i>
+            <span className="ml-2">Profil</span>
+          </Link>
+          <Link 
+            to="/pasarhewan/settings"
+            className={`flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-primary transition rounded-md ${activeSection === 'settings' ? 'text-primary bg-primaryLight font-medium' : ''}`}
+          >
+            <i className="fas fa-cog w-5"></i>
+            <span className="ml-2">Pengaturan</span>
+          </Link>
           <button
             onClick={handleLogout}
             className="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition"

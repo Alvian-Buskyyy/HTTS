@@ -63,7 +63,7 @@ const ModalCard = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-30 backdrop-blur-sm overflow-y-auto"
+  className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-transparent backdrop-blur-sm overflow-y-auto"
       onClick={handleBackgroundClick}
     >
       <div 

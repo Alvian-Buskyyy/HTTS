@@ -15,6 +15,11 @@ const PeternakTransaksi = () => {
   const [transactionSuccess, setTransactionSuccess] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyInputCode, setVerifyInputCode] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+  const [verifySuccess, setVerifySuccess] = useState('');
+  const [verifyingTx, setVerifyingTx] = useState(null);
   const [transactionFilter, setTransactionFilter] = useState({
     status: 'all',
     verificationStatus: 'all',
@@ -26,6 +31,7 @@ const PeternakTransaksi = () => {
     buyerType: '',
     cattleId: '',
     quantity: 1,
+    date: '', // added
     notes: ''
   });
   
@@ -41,7 +47,8 @@ const PeternakTransaksi = () => {
       quantity: 1,
       status: 'pending',
       verificationStatus: 'waiting_buyer',
-      blockchainHash: '',
+  blockchainHash: '',
+  verify: { sellerSigned: true, buyerSigned: false, code: '' },
       notes: 'Untuk acara qurban'
     },
     {
@@ -54,7 +61,8 @@ const PeternakTransaksi = () => {
       quantity: 1,
       status: 'verified',
       verificationStatus: 'verified',
-      blockchainHash: '0x1234...abcd',
+  blockchainHash: '0x1234...abcd',
+  verify: { sellerSigned: true, buyerSigned: true, code: '654321' },
       notes: 'Transaksi normal'
     }
   ]);
@@ -89,12 +97,68 @@ const PeternakTransaksi = () => {
     }
   ]);
   
-  const [buyers, setBuyers] = useState([
-    { id: 'PASAR_HEWAN-123', name: 'Pasar Hewan Al-Falah', type: 'PASAR_HEWAN' },
-    { id: 'PASAR_HEWAN-124', name: 'Pasar Hewan Baraka', type: 'PASAR_HEWAN' },
-    { id: 'JAGAL-125', name: 'Jagal Berkah', type: 'JAGAL' },
-    { id: 'RPH-126', name: 'RPH Al-Baraka', type: 'RPH' }
-  ]);
+  // Dynamic entity options (buyers and transfer recipients) loaded from backend
+  const [buyers, setBuyers] = useState([]);
+  const [entityOptions, setEntityOptions] = useState([]); // for Transfer Tujuan
+  const [entitiesLoading, setEntitiesLoading] = useState(false);
+  const [entitiesError, setEntitiesError] = useState('');
+
+  // Load all entities from backend to populate buyers and transfer tujuan
+  useEffect(() => {
+    const API_BASE = 'http://localhost:3000';
+    const fetchAllEntities = async () => {
+      try {
+        setEntitiesLoading(true);
+        setEntitiesError('');
+        const endpoints = [
+          { url: `${API_BASE}/peternak`, type: 'PETERNAK', nameKey: 'nama' },
+          { url: `${API_BASE}/pasarHewan`, type: 'PASAR_HEWAN', nameKey: 'nama' },
+          { url: `${API_BASE}/jagal`, type: 'JAGAL', nameKey: 'nama' },
+          { url: `${API_BASE}/rph`, type: 'RPH', nameKey: 'nama' },
+          { url: `${API_BASE}/distributor`, type: 'DISTRIBUTOR', nameKey: 'namaUsaha' },
+          { url: `${API_BASE}/horeka`, type: 'HOREKA', nameKey: 'nama' },
+        ];
+
+        const results = await Promise.allSettled(
+          endpoints.map(async (ep) => {
+            const res = await fetch(ep.url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            return data.map((item) => ({
+              id: item.id,
+              name: item[ep.nameKey] || item.nama || item.namaUsaha || '—',
+              type: ep.type,
+            }));
+          })
+        );
+
+        const combined = results
+          .filter(r => r.status === 'fulfilled')
+          .flatMap(r => r.value)
+          .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+
+        if (combined.length) {
+          setBuyers(combined);
+          setEntityOptions(combined);
+        }
+
+        const anyRejected = results.some(r => r.status === 'rejected');
+        if (anyRejected && !combined.length) {
+          setEntitiesError('Gagal memuat daftar entitas. Opsi default akan digunakan.');
+        }
+      } catch (err) {
+        setEntitiesError('Gagal memuat daftar entitas.');
+      } finally {
+        setEntitiesLoading(false);
+      }
+    };
+
+    fetchAllEntities();
+  }, []);
+
+  // Transfer Sapi state (simplified)
+  const [newTransfer, setNewTransfer] = useState({ cattleId: '', recipient: '', date: '', notes: '' });
+  const [transferSuccess, setTransferSuccess] = useState(false);
 
   // Handle authentication submission
   const handleAuthSubmit = (e) => {
@@ -188,40 +252,85 @@ const PeternakTransaksi = () => {
     setActiveTab(tab);
   };
 
-  // Handle form submission for new transaction
-  const handleNewTransaction = (e) => {
+  // Handle form submission for new transaction (wire to backend & capture CID)
+  const handleNewTransaction = async (e) => {
     e.preventDefault();
-    // In real app, submit transaction to API
-    console.log('New transaction:', newTransaction);
-    
-    // Simulate successful transaction
-    setTransactions([...transactions, {
-      id: `TXN00${transactions.length + 1}`,
-      date: new Date().toISOString().split('T')[0],
-      buyerId: newTransaction.buyerId,
-      buyerName: buyers.find(b => b.id === newTransaction.buyerId)?.name || '',
-      buyerType: newTransaction.buyerType,
-      cattleId: newTransaction.cattleId,
-      quantity: newTransaction.quantity,
-      status: 'pending',
-      verificationStatus: 'waiting_buyer',
-      blockchainHash: '',
-      notes: newTransaction.notes
-    }]);
-    
-    setTransactionSuccess(true);
-    setTimeout(() => {
-      setShowTransactionForm(false);
-      setTransactionSuccess(false);
-      setNewTransaction({
-        buyerId: '',
-        buyerName: '',
-        buyerType: '',
-        cattleId: '',
-        quantity: 1,
-        notes: ''
+    try {
+      const API_BASE = 'http://localhost:3000';
+      const token = localStorage.getItem('token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      // Current user assumed to represent the entity for seller mapping
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+      // Map buyer selection to proper buyer field in payload
+      const buyer = buyers.find(b => b.id === newTransaction.buyerId);
+      const pembeliType = buyer?.type || newTransaction.buyerType;
+      const pembeliFields = {
+        PETERNAK: { peternakPembeliId: buyer?.id },
+        PASAR_HEWAN: { pasarHewanPembeliId: buyer?.id },
+        JAGAL: { jagalPembeliId: buyer?.id },
+        RPH: { rphPembeliId: buyer?.id },
+        DISTRIBUTOR: { distributorPembeliId: buyer?.id },
+        HOREKA: { horekaPembeliId: buyer?.id },
+      }[pembeliType] || {};
+
+      // Seller is Peternak on this page; assume entity id equals logged-in user id (adjust if profile mapping exists)
+      const payload = {
+        penjualType: 'PETERNAK',
+        peternakPenjualId: user?.id,
+        pembeliType,
+        ...pembeliFields,
+        sapiId: newTransaction.cattleId,
+        jumlahQty: Number(newTransaction.quantity) || 1,
+        type: 'SAPI',
+        timestamp: newTransaction.date ? new Date(newTransaction.date).toISOString() : new Date().toISOString(),
+        pengecekanSehatId: null,
+      };
+
+      const res = await fetch(`${API_BASE}/transaksiPenjualan`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
       });
-    }, 2000);
+
+      let created = null;
+      if (res.ok) {
+        created = await res.json();
+      } else {
+        const err = await res.json().catch(()=>({}));
+        console.warn('Gagal kirim ke backend:', err?.error || res.statusText);
+      }
+
+      // Update UI using backend response when available; else fall back to local append
+      const txId = created?.id || `TXN00${transactions.length + 1}`;
+      const buyerName = buyer?.name || '';
+      setTransactions([...transactions, {
+        id: txId,
+        date: newTransaction.date || new Date().toISOString().split('T')[0],
+        buyerId: newTransaction.buyerId,
+        buyerName,
+        buyerType: pembeliType,
+        cattleId: newTransaction.cattleId,
+        quantity: newTransaction.quantity,
+        status: 'pending',
+        verificationStatus: 'waiting_buyer',
+        blockchainHash: '',
+        cid: created?.cid || undefined,
+        notes: newTransaction.notes
+      }]);
+
+      setTransactionSuccess(true);
+      setTimeout(() => {
+        setShowTransactionForm(false);
+        setTransactionSuccess(false);
+        setNewTransaction({ buyerId:'', buyerName:'', buyerType:'', cattleId:'', quantity:1, date:'', notes:'' });
+      }, 2000);
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      alert('Gagal membuat transaksi. Coba lagi nanti.');
+    }
   };
 
   // Handle buyer selection
@@ -256,8 +365,74 @@ const PeternakTransaksi = () => {
 
   // Request verification
   const handleRequestVerification = (transactionId) => {
-    alert(`Permintaan verifikasi dikirim untuk: ${transactionId}`);
-    // In real app, send request to API
+    const tx = transactions.find(t => t.id === transactionId);
+    if (!tx) return;
+    setVerifyingTx(tx);
+    setVerifyInputCode('');
+    setVerifyError('');
+    setVerifySuccess('');
+    if (!tx.verify || !tx.verify.code) {
+      const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+      const updated = transactions.map(t => t.id === transactionId ? {
+        ...t,
+        verify: { sellerSigned: true, buyerSigned: false, code },
+        verificationStatus: 'waiting_buyer'
+      } : t);
+      setTransactions(updated);
+      setVerifyingTx({ ...tx, verify: { sellerSigned: true, buyerSigned: false, code } });
+    }
+    setShowVerifyModal(true);
+  };
+
+  const handleCopyCode = async () => {
+    if (!verifyingTx?.verify?.code) return;
+    try {
+      await navigator.clipboard.writeText(verifyingTx.verify.code);
+      setVerifySuccess('Kode disalin ke clipboard');
+      setTimeout(()=> setVerifySuccess(''), 1500);
+    } catch {
+      setVerifyError('Gagal menyalin kode');
+      setTimeout(()=> setVerifyError(''), 2000);
+    }
+  };
+
+  const handleConfirmBuyer = () => {
+    if (!verifyingTx) return;
+    const expected = verifyingTx.verify?.code || '';
+    if (verifyInputCode.trim() !== expected) {
+      setVerifyError('Kode tidak cocok. Minta pembeli untuk memasukkan kode yang benar.');
+      return;
+    }
+    const updated = transactions.map(t => t.id === verifyingTx.id ? {
+      ...t,
+      verificationStatus: 'verified',
+      verify: { ...(t.verify||{}), buyerSigned: true },
+      blockchainHash: t.blockchainHash || '0x' + Math.random().toString(16).slice(2,10) + '...' + Math.random().toString(16).slice(2,10)
+    } : t);
+    setTransactions(updated);
+    setVerifySuccess('Verifikasi berhasil. Transaksi ditandai sebagai terverifikasi.');
+    setVerifyError('');
+    setTimeout(()=>{
+      setShowVerifyModal(false);
+      setVerifyingTx(null);
+      setVerifyInputCode('');
+      setVerifySuccess('');
+    }, 1200);
+  };
+
+  const handleRejectVerification = () => {
+    if (!verifyingTx) return;
+    if (!window.confirm('Tolak verifikasi transaksi ini?')) return;
+    const updated = transactions.map(t => t.id === verifyingTx.id ? {
+      ...t,
+      verificationStatus: 'rejected'
+    } : t);
+    setTransactions(updated);
+    setShowVerifyModal(false);
+    setVerifyingTx(null);
+    setVerifyInputCode('');
+    setVerifySuccess('');
+    setVerifyError('');
   };
 
   // Utility function to format date
@@ -296,31 +471,37 @@ const PeternakTransaksi = () => {
     }
   };
 
+  // Simplified submit (no pending/history lists now)
+  const handleNewTransferSubmit = (e) => {
+    e.preventDefault();
+    if(!newTransfer.cattleId || !newTransfer.recipient) return;
+    setTransferSuccess(true);
+    setTimeout(()=> setTransferSuccess(false), 2200);
+    setNewTransfer({ cattleId:'', recipient:'', date:'', notes:'' });
+  };
+
   return (
     <DashboardLayout
       title="Transaksi Penjualan"
       role="PETERNAK"
-      customSidebar={<PeternakSidebar activeSection="transaksi" />}
     >
-      <div>
-      <h1 className="text-2xl font-semibold text-gray-800 mb-6">Manajemen Transaksi Penjualan</h1>
-      
+      <div className="mt-4">{/* add top margin to separate from title */}
       {/* Tab Navigation */}
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex border-b border-gray-200 mb-8 gap-2">
         <button 
-          className={`py-2 px-4 text-left text-sm font-medium border-b-2 ${activeTab === 'sales' ? 'border-primary text-primary' : 'border-transparent hover:border-gray-300 hover:text-gray-700'}`}
+          className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'sales' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`}
           onClick={() => handleTabChange('sales')}
         >
           Transaksi Penjualan
         </button>
         <button 
-          className={`py-2 px-4 text-left text-sm font-medium border-b-2 ${activeTab === 'verification' ? 'border-primary text-primary' : 'border-transparent hover:border-gray-300 hover:text-gray-700'}`}
+          className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'verification' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`}
           onClick={() => handleTabChange('verification')}
         >
           Verifikasi Transaksi
         </button>
         <button 
-          className={`py-2 px-4 text-left text-sm font-medium border-b-2 ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent hover:border-gray-300 hover:text-gray-700'}`}
+          className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`}
           onClick={() => handleTabChange('history')}
         >
           Riwayat Transaksi
@@ -330,21 +511,78 @@ const PeternakTransaksi = () => {
       {/* Transaksi Penjualan Tab Content */}
       {activeTab === 'sales' && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
+          {/* ===== TRANSFER SAPI (moved to top) ===== */}
+          <div className="mb-10">
+            <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2"><i className="fas fa-truck text-primary"></i> Transfer Sapi</h2>
+            <p className="text-sm text-gray-500 mb-4">Ajukan pemindahan sapi ke entitas tujuan (RPH, dsb).</p>
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              {transferSuccess && (
+                <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
+                  <i className="fas fa-check-circle mr-1"></i> Transfer berhasil diajukan.
+                </div>
+              )}
+              <form onSubmit={handleNewTransferSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ID Sapi</label>
+                    <select value={newTransfer.cattleId} onChange={e=>setNewTransfer({...newTransfer, cattleId:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" required>
+                      <option value="">Pilih ID Sapi</option>
+                      {availableCattle.filter(c=>c.availability==='available').map(c=>(
+                        <option key={c.id} value={c.id}>{c.id} - {c.type} ({c.weight}kg)</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tujuan</label>
+                    <select 
+                      value={newTransfer.recipient}
+                      onChange={e=>setNewTransfer({...newTransfer, recipient:e.target.value})}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" 
+                      required
+                    >
+                      <option value="">{entitiesLoading ? 'Memuat...' : 'Pilih Tujuan'}</option>
+                      {entityOptions.map(ent => (
+                        <option key={`${ent.type}:${ent.id}`} value={`${ent.type}:${ent.id}`}>
+                          {ent.type.replace('_',' ')} - {ent.name}
+                        </option>
+                      ))}
+                    </select>
+                    {entitiesError && (
+                      <p className="text-xs text-red-600 mt-1">{entitiesError}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Transfer</label>
+                    <input type="date" value={newTransfer.date} onChange={e=>setNewTransfer({...newTransfer, date:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                    <textarea rows="2" value={newTransfer.notes} onChange={e=>setNewTransfer({...newTransfer, notes:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Opsional"></textarea>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button type="submit" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm">Ajukan Transfer</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          {/* ===== END TRANSFER SAPI ===== */}
+
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-gray-800">Transaksi Penjualan</h2>
+            <h2 className="text-xl font-semibold text-gray-800">Transaksi Penjualan</h2>
             <button 
               className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm"
               onClick={() => setShowTransactionForm(!showTransactionForm)}
             >
-              <i className="fas fa-plus mr-1"></i> Buat Transaksi Baru
+              <i className="fas fa-plus mr-1"></i> {showTransactionForm ? 'Tutup Form' : 'Buat Transaksi Baru'}
             </button>
           </div>
 
           {/* Form Transaksi Baru */}
           {showTransactionForm && (
             <div className="border border-gray-200 rounded-lg p-4 mb-6 bg-gray-50">
-              <h3 className="text-md font-semibold text-gray-800 mb-4">Buat Transaksi Penjualan Baru</h3>
-              <form onSubmit={handleNewTransaction}>
+              <h3 className="text-md font-semibold text-gray-800 mb-4">Form Transaksi</h3>
+              <form onSubmit={handleNewTransaction} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Pembeli</label>
@@ -394,17 +632,26 @@ const PeternakTransaksi = () => {
                       required
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Transaksi</label>
-                    <textarea 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Transaksi</label>
+                    <input 
+                      type="date" 
                       className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                      rows="2"
+                      value={newTransaction.date}
+                      onChange={(e) => setNewTransaction({...newTransaction, date: e.target.value})}
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan</label>
+                    <textarea 
+                      rows="2" 
+                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary"
                       value={newTransaction.notes}
                       onChange={(e) => setNewTransaction({...newTransaction, notes: e.target.value})}
                     ></textarea>
                   </div>
                 </div>
-                <div className="flex justify-end space-x-2 mt-4">
+                <div className="flex justify-end space-x-2">
                   <button 
                     type="button" 
                     className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-sm"
@@ -416,7 +663,7 @@ const PeternakTransaksi = () => {
                     type="submit" 
                     className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primaryDark transition text-sm"
                   >
-                    <i className="fas fa-save mr-1"></i> Simpan Transaksi
+                    <i className="fas fa-save mr-1"></i> Simpan
                   </button>
                 </div>
               </form>
@@ -468,10 +715,11 @@ const PeternakTransaksi = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pembeli</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sapi</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Verifikasi</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verifikasi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -480,37 +728,238 @@ const PeternakTransaksi = () => {
                   .filter(t => transactionFilter.search === '' || 
                     t.id.toLowerCase().includes(transactionFilter.search.toLowerCase()) ||
                     t.buyerName.toLowerCase().includes(transactionFilter.search.toLowerCase()) ||
-                    t.cattleId.toLowerCase().includes(transactionFilter.search.toLowerCase())
+                    t.cattleId.toLowerCase().includes(transactionFilter.search.toLowerCase()) ||
+                    (t.cid ? t.cid.toLowerCase().includes(transactionFilter.search.toLowerCase()) : false)
                   )
                   .map((transaction) => (
-                    <tr key={transaction.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{transaction.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(transaction.date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.buyerName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.cattleId}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">{transaction.quantity}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">{getTransactionStatusBadge(transaction.status)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">{getVerificationBadge(transaction.verificationStatus)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                        <button 
-                          className="text-blue-500 hover:text-blue-700 mr-3"
-                          onClick={() => handleViewTransaction(transaction.id)}
-                        >
-                          Detail
-                        </button>
-                        {transaction.status === 'pending' && (
-                          <button 
-                            className="text-red-500 hover:text-red-700"
-                            onClick={() => handleCancelTransaction(transaction.id)}
+                    <tr key={transaction.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-left">{transaction.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{formatDate(transaction.date)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{transaction.buyerName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{transaction.cattleId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{transaction.quantity}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">{getTransactionStatusBadge(transaction.status)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">{getVerificationBadge(transaction.verificationStatus)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">
+                        {transaction.cid ? (
+                          <a 
+                            href={`https://ipfs.io/ipfs/${transaction.cid}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline"
+                            title={transaction.cid}
                           >
-                            Batal
-                          </button>
+                            {transaction.cid.length > 18 
+                              ? `${transaction.cid.slice(0, 8)}...${transaction.cid.slice(-8)}` 
+                              : transaction.cid}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">-</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-left">
+                        <div className="flex items-center gap-3 justify-start">
+                          <button 
+                            className="text-blue-500 hover:text-blue-700"
+                            onClick={() => handleViewTransaction(transaction.id)}
+                          >
+                            Detail
+                          </button>
+                          {transaction.status === 'pending' && (
+                            <button 
+                              className="text-red-500 hover:text-red-700"
+                              onClick={() => handleCancelTransaction(transaction.id)}
+                            >
+                              Batal
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* ================= TRANSFER HEWAN (Embedded) ================= */}
+          {/* <div className="mt-12 border-t pt-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2"><i className="fas fa-truck text-primary"></i> Transfer Hewan</h2>
+            </div>
+            {/* Form Transfer Baru 
+            <div className="border border-gray-200 rounded-lg p-4 mb-8 bg-gray-50">
+              <h3 className="text-md font-semibold text-gray-800 mb-4">Form Transfer</h3>
+              {transferSuccess && (
+                <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
+                  <i className="fas fa-check-circle mr-1"></i> Transfer berhasil diajukan.
+                </div>
+              )}
+              <form onSubmit={handleNewTransferSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ID Ternak</label>
+                    <select value={newTransfer.cattleId} onChange={e=>setNewTransfer({...newTransfer, cattleId:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" required>
+                      <option value="">Pilih ID Ternak</option>
+                      {availableCattle.filter(c=>c.availability==='available').map(c=>(
+                        <option key={c.id} value={c.id}>{c.id} - {c.type} ({c.weight}kg)</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tujuan Transfer</label>
+                    <select value={newTransfer.recipient} onChange={e=>setNewTransfer({...newTransfer, recipient:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" required>
+                      <option value="">Pilih Tujuan</option>
+                      <option value="RPH Barokah">RPH Barokah</option>
+                      <option value="RPH Makmur">RPH Makmur</option>
+                      <option value="RPH Sentosa">RPH Sentosa</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Transfer</label>
+                    <input type="date" value={newTransfer.date} onChange={e=>setNewTransfer({...newTransfer, date:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan (opsional)</label>
+                    <textarea rows="2" value={newTransfer.notes} onChange={e=>setNewTransfer({...newTransfer, notes:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Masukkan catatan..."></textarea>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button type="submit" className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm">Kirim Permintaan Transfer</button>
+                </div>
+              </form>
+            </div>
+
+            {/* Pending Transfers 
+            <div className="mb-10">
+              <h3 className="text-md font-semibold text-gray-800 mb-4">Transfer Menunggu</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-600">
+                    <tr>
+                      <th className="px-6 py-3 text-left">ID Transfer</th>
+                      <th className="px-6 py-3 text-left">Tanggal</th>
+                      <th className="px-6 py-3 text-left">ID Ternak</th>
+                      <th className="px-6 py-3 text-left">Penerima</th>
+                      <th className="px-6 py-3 text-left">Status</th>
+                      <th className="px-6 py-3 text-left">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {pendingTransfers.map(tr => (
+                      <tr key={tr.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-3 font-medium text-primary">{tr.id}</td>
+                        <td className="px-6 py-3">{tr.date}</td>
+                        <td className="px-6 py-3">{tr.cattleId}</td>
+                        <td className="px-6 py-3">{tr.recipient}</td>
+                        <td className="px-6 py-3"><span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">{tr.status}</span></td>
+                        <td className="px-6 py-3 flex gap-3">
+                          <button onClick={()=>completeTransfer(tr.id)} className="text-green-600 hover:text-green-800" title="Tandai Selesai"><i className="fas fa-check-circle"></i></button>
+                          <button onClick={()=>cancelTransfer(tr.id)} className="text-red-600 hover:text-red-800" title="Batalkan"><i className="fas fa-times-circle"></i></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {pendingTransfers.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">Tidak ada transfer menunggu.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Transfer History 
+            <div>
+              <h3 className="text-md font-semibold text-gray-800 mb-4">Riwayat Transfer</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-600">
+                    <tr>
+                      <th className="px-6 py-3 text-left">ID Transfer</th>
+                      <th className="px-6 py-3 text-left">Tanggal</th>
+                      <th className="px-6 py-3 text-left">ID Ternak</th>
+                      <th className="px-6 py-3 text-left">Penerima</th>
+                      <th className="px-6 py-3 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {transferHistory.map(tr => (
+                      <tr key={tr.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-3 font-medium text-primary">{tr.id}</td>
+                        <td className="px-6 py-3">{tr.date}</td>
+                        <td className="px-6 py-3">{tr.cattleId}</td>
+                        <td className="px-6 py-3">{tr.recipient}</td>
+                        <td className="px-6 py-3">
+                          <span className={`px-2 py-1 text-xs rounded-full ${tr.status==='Selesai' ? 'bg-green-100 text-green-800' : tr.status==='Dibatalkan' ? 'bg-red-100 text-red-800':'bg-gray-100 text-gray-800'}`}>{tr.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {transferHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-4 text-center text-gray-500">Belum ada riwayat transfer.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div> */}
+          {/* ================= END TRANSFER HEWAN ================= */}
+        </div>
+      )}
+
+      {/* Inter-Entity Verification Modal */}
+      {showVerifyModal && verifyingTx && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm bg-transparent">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800">Verifikasi Antar Entitas</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={()=>{setShowVerifyModal(false); setVerifyingTx(null);}}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="text-sm text-gray-600">
+                <p><span className="font-medium">Transaksi:</span> {verifyingTx.id}</p>
+                <p><span className="font-medium">Pembeli:</span> {verifyingTx.buyerName} ({verifyingTx.buyerType})</p>
+                <p><span className="font-medium">Sapi:</span> {verifyingTx.cattleId}</p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <p className="text-sm text-blue-800 mb-2"><i className="fas fa-shield-alt mr-2"></i>Kode Verifikasi Bersama</p>
+                <div className="flex flex-col sm:flex-row items-center sm:justify-center gap-3 text-center">
+                  <div className="text-2xl font-mono tracking-widest text-blue-700 text-center">
+                    {verifyingTx.verify?.code || '— — — — — —'}
+                  </div>
+                  <button className="px-2 py-1 text-xs border border-blue-400 text-blue-600 rounded hover:bg-blue-100" onClick={handleCopyCode}>Salin</button>
+                  {!verifyingTx.verify?.code && (
+                    <button className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" onClick={()=>handleRequestVerification(verifyingTx.id)}>Buat Kode</button>
+                  )}
+                </div>
+                <p className="text-xs text-blue-700 mt-2">Bagikan kode ini kepada pembeli untuk konfirmasi. Pembeli harus mengirimkan kembali kode yang sama.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Masukkan Kode dari Pembeli</label>
+                <input value={verifyInputCode} onChange={e=>setVerifyInputCode(e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="6 digit" />
+                {verifyError && <p className="text-sm text-red-600 mt-1">{verifyError}</p>}
+                {verifySuccess && <p className="text-sm text-green-600 mt-1">{verifySuccess}</p>}
+                {!verifyError && !verifySuccess && verifyInputCode && verifyInputCode.length < 6 && (
+                  <p className="text-xs text-gray-500 mt-1">Masukkan 6 digit kode</p>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+              <button className="px-4 py-2 text-red-600 border border-red-300 rounded-md hover:bg-red-50" onClick={handleRejectVerification}>Tolak</button>
+              <div className="flex items-center gap-2">
+                <button className="px-4 py-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50" onClick={()=>{setShowVerifyModal(false); setVerifyingTx(null);}}>Batal</button>
+                <button
+                  className={`px-4 py-2 rounded-md text-white ${/^\d{6}$/.test(verifyInputCode) ? 'bg-primary hover:bg-primaryDark' : 'bg-primary/60 cursor-not-allowed'}`}
+                  onClick={handleConfirmBuyer}
+                  disabled={!/^\d{6}$/.test(verifyInputCode)}
+                >
+                  Verifikasi
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -554,20 +1003,20 @@ const PeternakTransaksi = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pembeli</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sapi</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status Verifikasi</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Blockchain</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Verifikasi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blockchain</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {transactions.map((transaction) => (
-                  <tr key={transaction.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{transaction.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(transaction.date)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.buyerName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.cattleId}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">{getVerificationBadge(transaction.verificationStatus)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {transactions.map((transaction) => (
+                  <tr key={transaction.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-left">{transaction.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{formatDate(transaction.date)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{transaction.buyerName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{transaction.cattleId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-left">{getVerificationBadge(transaction.verificationStatus)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-left">
                       {transaction.blockchainHash ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           Tercatat
@@ -578,21 +1027,31 @@ const PeternakTransaksi = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                      {transaction.verificationStatus === 'waiting_buyer' && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-left">
+                      <div className="flex items-center gap-3 justify-start">
+                        {transaction.verificationStatus === 'waiting_buyer' && (
+                          <>
+                            <button 
+                              className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10"
+                              onClick={() => handleRequestVerification(transaction.id)}
+                            >
+                              Verifikasi Bersama
+                            </button>
+                            <button 
+                              className="text-red-500 hover:text-red-700 text-xs"
+                              onClick={() => { setVerifyingTx(transaction); setShowVerifyModal(true); }}
+                            >
+                              Tolak
+                            </button>
+                          </>
+                        )}
                         <button 
-                          className="bg-primary text-white px-3 py-1 rounded text-xs hover:bg-primaryDark mr-1"
-                          onClick={() => handleRequestVerification(transaction.id)}
+                          className="text-blue-500 hover:text-blue-700"
+                          onClick={() => handleViewTransaction(transaction.id)}
                         >
-                          Minta Verifikasi
+                          Detail
                         </button>
-                      )}
-                      <button 
-                        className="text-blue-500 hover:text-blue-700"
-                        onClick={() => handleViewTransaction(transaction.id)}
-                      >
-                        Detail
-                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -640,7 +1099,7 @@ const PeternakTransaksi = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sapi</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Nilai</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -654,7 +1113,7 @@ const PeternakTransaksi = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.cattleId}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">Rp 15.000.000</td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">{getTransactionStatusBadge(transaction.status)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-left">
                         <button 
                           className="text-blue-500 hover:text-blue-700"
                           onClick={() => handleViewTransaction(transaction.id)}
@@ -686,7 +1145,7 @@ const PeternakTransaksi = () => {
 
       {/* Detail Transaksi Modal */}
       {showDetailModal && selectedTransaction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4 backdrop-blur-sm bg-transparent">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[90vh] overflow-auto">
             <div className="p-4 border-b">
               <h2 className="text-lg font-semibold text-gray-800">
@@ -726,6 +1185,26 @@ const PeternakTransaksi = () => {
                      selectedTransaction.verificationStatus === 'verified' ? 'Terverifikasi' : 'Ditolak'}
                   </p>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-500">CID (IPFS)</p>
+                  <p className="text-gray-800 font-semibold">
+                    {selectedTransaction.cid ? (
+                      <a 
+                        href={`https://ipfs.io/ipfs/${selectedTransaction.cid}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                        title={selectedTransaction.cid}
+                      >
+                        {selectedTransaction.cid.length > 24
+                          ? `${selectedTransaction.cid.slice(0, 10)}...${selectedTransaction.cid.slice(-10)}`
+                          : selectedTransaction.cid}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </p>
+                </div>
                 <div className="md:col-span-2">
                   <p className="text-sm text-gray-500">Catatan</p>
                   <p className="text-gray-800 font-semibold">{selectedTransaction.notes}</p>
@@ -746,7 +1225,7 @@ const PeternakTransaksi = () => {
 
       {/* Authentication Modal */}
       {showAuthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-[60] p-4 backdrop-blur-sm bg-transparent">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
             <div className="p-4 border-b">
               <h2 className="text-lg font-semibold text-gray-800">Autentikasi Diperlukan</h2>
