@@ -14,6 +14,7 @@ const handleCorsResponse = (res) => {
   return res;
 };
 
+
 /**
  * Controller untuk mendaftarkan user baru (signup)
  */
@@ -26,6 +27,8 @@ exports.signup = async (req, res) => {
       message: 'Username, email, password, dan role diperlukan' 
     });
   }
+
+  console.log('Signup request body:', req.body);
 
   try {
     // Cek apakah email sudah terdaftar
@@ -71,6 +74,8 @@ exports.signup = async (req, res) => {
     res.status(500).json({ message: 'Terjadi kesalahan saat mendaftarkan user', error: error.message });
   }
 };
+
+
 
 /**
  * Controller untuk login user yang sudah terdaftar (signin)

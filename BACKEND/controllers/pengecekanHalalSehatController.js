@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { uploadToIPFS } = require('../config/ipfs');
 
 exports.getAllPengecekanHalalSehat = async (req, res) => {
   try {
@@ -29,16 +30,19 @@ exports.getPengecekanHalalSehatById = async (req, res) => {
 exports.createPengecekanHalalSehat = async (req, res) => {
   const { sapiId, itemHalalSehatId, boolean, cid } = req.body;
   try {
+    // If CID is not provided, upload the payload to IPFS first
+    let finalCid = cid;
+    if (!finalCid) {
+      const payload = JSON.stringify({ sapiId, itemHalalSehatId, boolean, timestamp: new Date().toISOString() });
+      finalCid = await uploadToIPFS(payload);
+    }
+
     const newPengecekanHalalSehat = await prisma.pengecekanHalalSehat.create({
       data: {
         boolean,
-        cid,
-        sapi: {
-          connect: { id: sapiId }
-        },
-        itemHalalSehat: {
-          connect: { id: itemHalalSehatId }
-        }
+        cid: finalCid,
+        sapi: { connect: { id: sapiId } },
+        itemHalalSehat: { connect: { id: itemHalalSehatId } }
       }
     });
     res.status(201).json(newPengecekanHalalSehat);
@@ -51,18 +55,19 @@ exports.updatePengecekanHalalSehat = async (req, res) => {
   const { id } = req.params;
   const { sapiId, itemHalalSehatId, boolean, cid } = req.body;
   try {
+    const data = {
+      boolean,
+      sapi: sapiId ? { connect: { id: sapiId } } : undefined,
+      itemHalalSehat: itemHalalSehatId ? { connect: { id: itemHalalSehatId } } : undefined
+    };
+
+    if (cid) {
+      data.cid = cid;
+    }
+
     const updatedPengecekanHalalSehat = await prisma.pengecekanHalalSehat.update({
       where: { id },
-      data: {
-        boolean,
-        cid,
-        sapi: sapiId ? {
-          connect: { id: sapiId }
-        } : undefined,
-        itemHalalSehat: itemHalalSehatId ? {
-          connect: { id: itemHalalSehatId }
-        } : undefined
-      }
+      data
     });
     res.status(200).json(updatedPengecekanHalalSehat);
   } catch (error) {

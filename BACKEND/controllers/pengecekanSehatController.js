@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { uploadToIPFS } = require('../config/ipfs');
 
 exports.getAllPengecekanSehat = async (req, res) => {
   try {
@@ -29,16 +30,19 @@ exports.getPengecekanSehatById = async (req, res) => {
 exports.createPengecekanSehat = async (req, res) => {
   const { sapiId, itemSehatId, boolean, cid } = req.body;
   try {
+    // If no CID provided, upload payload to IPFS (align with transaksi penjualan flow)
+    let finalCid = cid;
+    if (!finalCid) {
+      const payload = JSON.stringify({ sapiId, itemSehatId, boolean, timestamp: new Date().toISOString() });
+      finalCid = await uploadToIPFS(payload);
+    }
+
     const newPengecekanSehat = await prisma.pengecekanSehat.create({
       data: {
         boolean,
-        cid,
-        sapi: {
-          connect: { id: sapiId }
-        },
-        itemSehat: {
-          connect: { id: itemSehatId }
-        }
+        cid: finalCid,
+        sapi: { connect: { id: sapiId } },
+        itemSehat: { connect: { id: itemSehatId } }
       }
     });
     res.status(201).json(newPengecekanSehat);
@@ -51,18 +55,20 @@ exports.updatePengecekanSehat = async (req, res) => {
   const { id } = req.params;
   const { sapiId, itemSehatId, boolean, cid } = req.body;
   try {
+    // Only update CID if provided; otherwise keep existing (non-breaking)
+    const data = {
+      boolean,
+      sapi: sapiId ? { connect: { id: sapiId } } : undefined,
+      itemSehat: itemSehatId ? { connect: { id: itemSehatId } } : undefined
+    };
+
+    if (cid) {
+      data.cid = cid;
+    }
+
     const updatedPengecekanSehat = await prisma.pengecekanSehat.update({
       where: { id },
-      data: {
-        boolean,
-        cid,
-        sapi: sapiId ? {
-          connect: { id: sapiId }
-        } : undefined,
-        itemSehat: itemSehatId ? {
-          connect: { id: itemSehatId }
-        } : undefined
-      }
+      data
     });
     res.status(200).json(updatedPengecekanSehat);
   } catch (error) {
