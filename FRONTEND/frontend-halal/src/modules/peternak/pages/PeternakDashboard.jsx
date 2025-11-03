@@ -427,67 +427,89 @@ const PeternakDashboard = ({ initialSection = 'dashboard' }) => {
       setIsAuthenticated(true);
     }
     
-    // Mengambil data ternak dari localStorage
-    const fetchCattleData = () => {
-      setTimeout(() => {
-        try {
-          const storedCattleJSON = localStorage.getItem('cattleList');
-          let cattleList = [];
-          
-          if (storedCattleJSON) {
-            const storedCattle = JSON.parse(storedCattleJSON);
-            
-            if (storedCattle.length > 0) {
-              // Map stored data to match our UI structure
-              cattleList = storedCattle.map(cattle => ({
-                id: cattle.id || `SP${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-                type: cattle.jenis === 'other' ? cattle.customJenis : cattle.jenis,
-                gender: cattle.kelamin,
-                birthDate: cattle.tanggalLahir || new Date().toISOString().split('T')[0],
-                weight: parseFloat(cattle.berat) || 0,
-                healthStatus: cattle.healthStatus || 'sehat',
-                availability: cattle.availability || 'available',
-                motherId: cattle.motherId || '',
-                fatherId: cattle.fatherId || '',
-                origin: cattle.origin || 'beli',
-                age: parseFloat(cattle.usia) || 0
-              }));
-              
-              // Sort by ID for consistency
-              cattleList.sort((a, b) => a.id.localeCompare(b.id));
-            }
-          }
-          
-          setCattleData(cattleList);
-          
-          // Set statistics based on cattle data
-          const currentDate = new Date();
-          const oneMonthAgo = new Date();
-          oneMonthAgo.setMonth(currentDate.getMonth() - 1);
-          
-          setStats({
-            totalSapi: cattleList.length,
-            sapiBaru: cattleList.filter(c => new Date(c.birthDate) > oneMonthAgo).length,
-            sapiTerjual: cattleList.filter(c => c.availability === 'sold').length,
-            periksaKesehatan: cattleList.filter(c => c.healthStatus === 'perlu_periksa' || c.healthStatus === 'sakit').length,
-          });
-          
-          // Set available cattle for transaction form
-          const available = cattleList.filter(c => c.availability === 'available');
-          setAvailableCattle(available);
-        
+    // Mengambil data ternak dari backend API
+    const fetchCattleData = async () => {
+      try {
+        // Get peternak ID from user data
+        const userDataStr = localStorage.getItem('user');
+        if (!userDataStr) {
+          console.error('User data not found in localStorage');
           setLoading(false);
-        } catch (error) {
-          console.error('Error loading cattle data:', error);
-          setLoading(false);
-          setStats({
-            totalSapi: 0,
-            sapiBaru: 0,
-            sapiTerjual: 0,
-            periksaKesehatan: 0,
-          });
+          return;
         }
-      }, 1000);
+
+        const userData = JSON.parse(userDataStr);
+        const peternakId = userData.entityId || userData.id;
+
+        if (!peternakId) {
+          console.error('Peternak ID not found');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch cattle data from backend API
+        const response = await fetch(`http://localhost:3000/sapi/entity/PETERNAK/${peternakId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch cattle data: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Map backend data to frontend structure
+        const cattleList = data.map(cattle => ({
+          id: cattle.id,
+          type: cattle.jenis,
+          gender: cattle.kelamin,
+          birthDate: cattle.tanggalLahir || new Date().toISOString().split('T')[0],
+          weight: parseFloat(cattle.beratSapi) || 0,
+          healthStatus: cattle.healthStatus || 'sehat',
+          availability: cattle.availability || 'available',
+          motherId: cattle.motherId || '',
+          fatherId: cattle.fatherId || '',
+          origin: cattle.asalType,
+          age: parseFloat(cattle.usia) || 0,
+          asalId: cattle.asalId,
+          peternakId: cattle.peternakId,
+          pasarHewanId: cattle.pasarHewanId
+        }));
+        
+        setCattleData(cattleList);
+        
+        // Set statistics based on cattle data
+        const currentDate = new Date();
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(currentDate.getMonth() - 1);
+        
+        setStats({
+          totalSapi: cattleList.length,
+          sapiBaru: cattleList.filter(c => new Date(c.birthDate) > oneMonthAgo).length,
+          sapiTerjual: cattleList.filter(c => c.availability === 'sold').length,
+          periksaKesehatan: cattleList.filter(c => c.healthStatus === 'perlu_periksa' || c.healthStatus === 'sakit').length,
+        });
+        
+        // Set available cattle for transaction form
+        const available = cattleList.filter(c => c.availability === 'available');
+        setAvailableCattle(available);
+      
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading cattle data:', error);
+        setCattleData([]);
+        setLoading(false);
+        setStats({
+          totalSapi: 0,
+          sapiBaru: 0,
+          sapiTerjual: 0,
+          periksaKesehatan: 0,
+        });
+      }
     };
     
     fetchCattleData();

@@ -24,6 +24,13 @@ const PeternakProfil = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+  
+  // Profile image upload states
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadImageError, setUploadImageError] = useState('');
+  
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -32,55 +39,101 @@ const PeternakProfil = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   
-  // Load user data
+  // Load user data from backend
   useEffect(() => {
-    // In a real application, fetch user data from API
-    // For demo, we'll use mock data
-    setTimeout(() => {
-      const mockUserData = {
-        id: 'P12345',
-        username: 'sumitro27',
-        name: 'Sumitro Wijaya',
-        email: 'sumitro27@gmail.com',
-        phone: '081298765432',
-        role: 'PETERNAK',
-        farmName: 'Peternakan Makmur Sejahtera',
-        address: 'Jl. Merdeka No. 45, Desa Sukamaju',
-        city: 'Yogyakarta',
-        province: 'D.I. Yogyakarta',
-        postalCode: '55281',
-        establishedYear: '2010',
-        farmSize: '8.5 hektar',
-        cattleCount: '210',
-        farmingType: 'Peternakan Sapi Potong dan Perah',
-        businessPermitNumber: 'PIB/2010/YOG/12345',
-        certifications: ['Sertifikasi Halal MUI', 'Sertifikasi Peternakan Sehat Kementan'],
-        bio: 'Peternakan keluarga yang sudah berdiri sejak 2010, fokus pada pengembangan sapi lokal dengan standar kesejahteraan hewan yang tinggi. Menerapkan teknologi modern dan pakan organik untuk menghasilkan produk berkualitas premium.',
-        profileImage: 'https://randomuser.me/api/portraits/men/35.jpg',
-        joinDate: '2023-03-10',
-        lastLogin: '2025-07-17T14:25:00'
-      };
-      
-      setUserData(mockUserData);
-      setFormData({
-        name: mockUserData.name,
-        email: mockUserData.email,
-        phone: mockUserData.phone,
-        farmName: mockUserData.farmName,
-        address: mockUserData.address,
-        city: mockUserData.city,
-        province: mockUserData.province,
-        postalCode: mockUserData.postalCode,
-        establishedYear: mockUserData.establishedYear,
-        farmSize: mockUserData.farmSize,
-        cattleCount: mockUserData.cattleCount,
-        farmingType: mockUserData.farmingType,
-        businessPermitNumber: mockUserData.businessPermitNumber,
-        certifications: mockUserData.certifications,
-        bio: mockUserData.bio
-      });
-      setLoading(false);
-    }, 1000);
+    const fetchUserData = async () => {
+      try {
+        // Get user data from localStorage
+        const userDataStr = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        
+        if (!userDataStr || !token) {
+          console.error('User data or token not found');
+          setLoading(false);
+          return;
+        }
+
+        const localUserData = JSON.parse(userDataStr);
+        const userId = localUserData.id;
+        const peternakId = localUserData.entityId || localUserData.id;
+
+        // Fetch user and peternak data from backend
+        const [userResponse, peternakResponse] = await Promise.all([
+          fetch(`http://localhost:3000/users/${userId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          fetch(`http://localhost:3000/peternak/${peternakId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ]);
+
+        if (!userResponse.ok || !peternakResponse.ok) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const user = await userResponse.json();
+        const peternak = await peternakResponse.json();
+
+        // Combine user and peternak data
+        const combinedData = {
+          id: user.id,
+          username: user.username,
+          name: peternak.nama,
+          email: user.email,
+          phone: peternak.noTelepon,
+          role: user.role,
+          farmName: peternak.nama,
+          address: peternak.alamat,
+          city: peternak.city || '',
+          province: peternak.province || '',
+          postalCode: peternak.postalCode || '',
+          establishedYear: peternak.establishedYear || '',
+          farmSize: peternak.farmSize || '',
+          cattleCount: peternak.jumlahSapi?.toString() || '0',
+          farmingType: peternak.farmingType || '',
+          businessPermitNumber: peternak.sertifikatNKV || '',
+          certifications: peternak.certifications || [],
+          bio: peternak.bio || '',
+          profileImage: peternak.profiles?.[0]?.fotoProfil 
+            ? `http://localhost:3000${peternak.profiles[0].fotoProfil}` 
+            : 'https://via.placeholder.com/150',
+          joinDate: user.createdAt,
+          lastLogin: user.updatedAt
+        };
+
+        setUserData(combinedData);
+        setFormData({
+          name: combinedData.name,
+          email: combinedData.email,
+          phone: combinedData.phone,
+          farmName: combinedData.farmName,
+          address: combinedData.address,
+          city: combinedData.city,
+          province: combinedData.province,
+          postalCode: combinedData.postalCode,
+          establishedYear: combinedData.establishedYear,
+          farmSize: combinedData.farmSize,
+          cattleCount: combinedData.cattleCount,
+          farmingType: combinedData.farmingType,
+          businessPermitNumber: combinedData.businessPermitNumber,
+          certifications: combinedData.certifications,
+          bio: combinedData.bio
+        });
+
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
   }, []);
   
   // Handle form field changes
@@ -106,13 +159,43 @@ const PeternakProfil = () => {
   };
   
   // Handle profile form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      // Update the user data with form data
+    try {
+      const token = localStorage.getItem('token');
+      const userDataStr = localStorage.getItem('user');
+      const localUserData = JSON.parse(userDataStr);
+      const peternakId = localUserData.entityId || localUserData.id;
+      
+      // Update peternak data
+      const response = await fetch(`http://localhost:3000/peternak/${peternakId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nama: formData.name,
+          alamat: formData.address,
+          noTelepon: formData.phone,
+          city: formData.city,
+          province: formData.province,
+          postalCode: formData.postalCode,
+          establishedYear: formData.establishedYear,
+          farmSize: formData.farmSize,
+          farmingType: formData.farmingType,
+          sertifikatNKV: formData.businessPermitNumber,
+          bio: formData.bio
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+      
+      // Update user data in state
       setUserData({
         ...userData,
         ...formData
@@ -126,7 +209,11 @@ const PeternakProfil = () => {
       setTimeout(() => {
         setUpdateSuccess(false);
       }, 3000);
-    }, 1000);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setIsSubmitting(false);
+      alert('Gagal memperbarui profil. Silakan coba lagi.');
+    }
   };
   
   // Handle password change submission
@@ -165,6 +252,72 @@ const PeternakProfil = () => {
         setPasswordSuccess(false);
       }, 3000);
     }, 1000);
+  };
+  
+  // Handle profile image selection
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+  
+  // Handle profile image upload
+  const handleImageUpload = async () => {
+    if (!selectedImage) return;
+    
+    setIsUploadingImage(true);
+    setUploadImageError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const userDataStr = localStorage.getItem('user');
+      const localUserData = JSON.parse(userDataStr);
+      const peternakId = localUserData.entityId || localUserData.id;
+      const userId = localUserData.id;
+      
+      // Create FormData for image upload
+      const uploadFormData = new FormData();
+      uploadFormData.append('fotoProfil', selectedImage);
+      uploadFormData.append('userId', userId);
+      uploadFormData.append('peternakId', peternakId);
+      
+      // Upload image to backend
+      const response = await fetch('http://localhost:3000/upload/profile-photo', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: uploadFormData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const result = await response.json();
+      
+      // Update user data with new profile image URL from backend
+      setUserData({
+        ...userData,
+        profileImage: result.fotoProfil ? `http://localhost:3000${result.fotoProfil}` : imagePreview
+      });
+      
+      setIsUploadingImage(false);
+      setSelectedImage(null);
+      setImagePreview(null);
+      setUpdateSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setUpdateSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setUploadImageError('Gagal mengunggah foto profil. Silakan coba lagi.');
+      setIsUploadingImage(false);
+    }
   };
   
   // Format date
@@ -211,7 +364,12 @@ const PeternakProfil = () => {
                   <div className="absolute bottom-0 right-0 bg-white rounded-full p-1 border border-gray-200">
                     <label className="cursor-pointer" title="Ubah foto profil">
                       <i className="fas fa-camera text-primary"></i>
-                      <input type="file" className="hidden" />
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={handleImageSelect} 
+                      />
                     </label>
                   </div>
                 </div>
@@ -616,6 +774,40 @@ const PeternakProfil = () => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Image Upload Modal */}
+      {imagePreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Pratinjau Foto Profil</h3>
+            <img src={imagePreview} alt="Preview" className="w-full h-64 object-cover rounded-lg mb-4" />
+            {uploadImageError && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md text-sm">
+                {uploadImageError}
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setImagePreview(null);
+                  setSelectedImage(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100"
+                disabled={isUploadingImage}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleImageUpload}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                disabled={isUploadingImage}
+              >
+                {isUploadingImage ? 'Mengunggah...' : 'Unggah Foto'}
+              </button>
             </div>
           </div>
         </div>

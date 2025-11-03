@@ -16,6 +16,7 @@ enum UserRole {
   RPH
   DISTRIBUTOR
   HOREKA
+  END_CUSTOMER
   REGULATOR
 }
 
@@ -51,6 +52,7 @@ model User {
 model Profile {
   id          String     @id @default(uuid())
   entityType  EntityType
+  fotoProfil  String?    // Tambahan foto profil
   user        User       @relation(fields: [userId], references: [id])
   userId      String     @unique
 
@@ -72,6 +74,9 @@ model Profile {
   horekaId      String?  @unique
   horeka        Horeka?  @relation(fields: [horekaId], references: [id])
   
+  endCustomerId String?  @unique
+  endCustomer   EndCustomer? @relation(fields: [endCustomerId], references: [id])
+  
   regulatorId   String?  @unique
   regulator     Regulator? @relation(fields: [regulatorId], references: [id])
 
@@ -84,16 +89,17 @@ model Regulator {
   nama     String
   instansi String
   jabatan  String
+  userId   String?  @unique
 
   profiles Profile[]
 }
 
 model Peternak {
-  id             String     @id @default(uuid())
+  id             String     @id @unique
   nama           String
   alamat         String
   noTelepon      String
-  jumlahSapi     Int
+  jumlahSapi     Int        @default(0)
   sertifikatNKV  String?
   
   sapi           Sapi[]
@@ -105,8 +111,9 @@ model PasarHewan {
   nama           String
   alamat         String
   noTelepon      String
-  jumlahSapi     Int
+  jumlahSapi     Int        @default(0)
   sertifikatNKV  String?
+  userId         String?    @unique
   
   sapi           Sapi[]
   profiles       Profile[]
@@ -117,12 +124,12 @@ model Jagal {
   nama           String
   alamat         String
   noTelepon      String
-  jumlahSapi     Int
-  jumlahDaging   Int
+  jumlahSapi     Int        @default(0)
+  jumlahDaging   Int        @default(0)
   sertifikatNKV  String?
+  userId         String?    @unique
 
-  profiles               Profile[]
-  transaksiPenyembelihan TransaksiPenyembelihan[] @relation("JagalToPenyembelihan")
+  profiles       Profile[]
 }
 
 model RPH {
@@ -134,10 +141,10 @@ model RPH {
   sertifikatHalal        String?
   namaJuleha             String?
   noSertifJuleha         String?
-  jumlahPenyelia         Int
+  jumlahPenyelia         Int        @default(0)
+  userId                 String?    @unique
 
   profiles               Profile[]
-  transaksiPenyembelihan TransaksiPenyembelihan[] @relation("RPHToPenyembelihan")
 }
 
 model Distributor {
@@ -147,9 +154,9 @@ model Distributor {
   noTelepon             String
   kondisiProduk         String?
   fasilitasPenyimpanan  String?
+  userId                String?    @unique
 
   profiles               Profile[]
-  transaksiPenyembelihan TransaksiPenyembelihan[] @relation("DistributorToPenyembelihan")
 }
 
 model Horeka {
@@ -158,8 +165,19 @@ model Horeka {
   alamat        String
   noTelepon     String
   kondisiProduk String?
+  userId        String?    @unique
 
   profiles      Profile[]
+}
+
+model EndCustomer {
+  id        String   @id @default(uuid())
+  nama      String
+  alamat    String
+  noTelepon String
+  userId    String?  @unique
+
+  profiles  Profile[]
 }
 
 model Sapi {
@@ -167,6 +185,7 @@ model Sapi {
   usia                   Int
   jenis                  String
   kelamin                String
+  beratSapi              Float?     // Tambahan berat sapi
   asalType               EntityType
   asalId                 String
   
@@ -178,7 +197,7 @@ model Sapi {
   
   daging                 Daging?
   transaksiPenyembelihan TransaksiPenyembelihan[]
-  transaksiPenjualan     TransaksiPenjualan[]    // Tambahkan ini
+  transaksiPenjualan     TransaksiPenjualan[]
   pengecekanSehat        PengecekanSehat[]
   pengecekanHalalSehat   PengecekanHalalSehat[]
   qr                     QR[]
@@ -195,36 +214,27 @@ model Daging {
 }
 
 model TransaksiPenyembelihan {
-  id            String     @id @default(uuid())
+  id              String     @id @default(uuid())
   
   penyembelihType EntityType
   penyembelihId   String
   
-  jagalId       String?
-  jagal         Jagal?    @relation("JagalToPenyembelihan", fields: [jagalId], references: [id])
+  penerimaType    EntityType
+  penerimaId      String
   
-  rphId         String?
-  rph           RPH?      @relation("RPHToPenyembelihan", fields: [rphId], references: [id])
+  sapiId          String
+  sapi            Sapi      @relation(fields: [sapiId], references: [id])
   
-  penerimaType  EntityType
-  penerimaId    String
-  
-  distributorId String?
-  distributor   Distributor? @relation("DistributorToPenyembelihan", fields: [distributorId], references: [id])
-  
-  sapiId        String
-  sapi          Sapi      @relation(fields: [sapiId], references: [id])
-  
-  timestamp     DateTime  @default(now())
-  cid           String
+  timestamp       DateTime  @default(now())
+  cid             String
 }
 
 model TransaksiPenjualan {
   id                String     @id @default(uuid())
-  penjualId         String
-  pembeliId         String
   penjualType       EntityType
+  penjualId         String
   pembeliType       EntityType
+  pembeliId         String
   
   sapiId            String?
   sapi              Sapi?     @relation(fields: [sapiId], references: [id])

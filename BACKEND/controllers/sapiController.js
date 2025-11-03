@@ -26,53 +26,116 @@ exports.getSapiById = async (req, res) => {
   }
 };
 
-exports.createSapi = async (req, res) => {
-  const { usia, jenis, kelamin, peternakId, pasarHewanId, jagalId, rphId } = req.body;
+// Mendapatkan sapi berdasarkan entitas pemilik
+exports.getSapiByEntity = async (req, res) => {
+  const { entityType, entityId } = req.params;
   
   try {
-    // Validate that referenced entities exist
+    let sapi = [];
+    
+    switch (entityType) {
+      case 'PETERNAK':
+        sapi = await prisma.sapi.findMany({
+          where: { peternakId: entityId },
+          include: {
+            peternak: true,
+            transaksiPenjualan: true,
+            pengecekanSehat: true,
+          }
+        });
+        break;
+      case 'PASAR_HEWAN':
+        sapi = await prisma.sapi.findMany({
+          where: { pasarHewanId: entityId },
+          include: {
+            pasarHewan: true,
+            transaksiPenjualan: true,
+            pengecekanSehat: true,
+          }
+        });
+        break;
+      default:
+        return res.status(400).json({ error: 'Entity type tidak valid' });
+    }
+    
+    res.status(200).json(sapi);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.createSapi = async (req, res) => {
+  const { usia, jenis, kelamin, beratSapi, asalType, asalId, peternakId } = req.body;
+  
+  try {
+    // Validate that the origin entity exists
+    let originEntity = null;
+    
+    if (!asalType || !asalId) {
+      return res.status(400).json({ error: 'asalType dan asalId harus diisi' });
+    }
+
+    // Validate origin entity exists in database
+    switch (asalType) {
+      case 'PETERNAK':
+        originEntity = await prisma.peternak.findUnique({ where: { id: asalId } });
+        if (!originEntity) {
+          return res.status(404).json({ error: `Peternak dengan ID ${asalId} tidak ditemukan` });
+        }
+        break;
+      case 'PASAR_HEWAN':
+        originEntity = await prisma.pasarHewan.findUnique({ where: { id: asalId } });
+        if (!originEntity) {
+          return res.status(404).json({ error: `Pasar Hewan dengan ID ${asalId} tidak ditemukan` });
+        }
+        break;
+      default:
+        return res.status(400).json({ error: 'asalType harus PETERNAK atau PASAR_HEWAN untuk pembuatan sapi baru' });
+    }
+
+    // Validate current owner if provided
     if (peternakId) {
       const peternak = await prisma.peternak.findUnique({
         where: { id: peternakId },
       });
       if (!peternak) {
-        return res.status(404).json({ error: `Peternak with ID ${peternakId} not found` });
+        return res.status(404).json({ error: `Peternak dengan ID ${peternakId} tidak ditemukan` });
       }
     }
 
-    if (pasarHewanId) {
-      const pasarHewan = await prisma.pasarHewan.findUnique({
-        where: { id: pasarHewanId },
+    // Create sapi record and update jumlahSapi in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create sapi record
+      const newSapi = await tx.sapi.create({
+        data: { 
+          usia, 
+          jenis, 
+          kelamin, 
+          beratSapi,
+          asalType,
+          asalId,
+          peternakId: peternakId || (asalType === 'PETERNAK' ? asalId : null),
+          pasarHewanId: asalType === 'PASAR_HEWAN' ? asalId : null
+        },
       });
-      if (!pasarHewan) {
-        return res.status(404).json({ error: `Pasar Hewan with ID ${pasarHewanId} not found` });
+      
+      // Update jumlahSapi for owner entity
+      if (asalType === 'PETERNAK') {
+        await tx.peternak.update({
+          where: { id: asalId },
+          data: { jumlahSapi: { increment: 1 } }
+        });
+      } else if (asalType === 'PASAR_HEWAN') {
+        await tx.pasarHewan.update({
+          where: { id: asalId },
+          data: { jumlahSapi: { increment: 1 } }
+        });
       }
-    }
-
-    if (jagalId) {
-      const jagal = await prisma.jagal.findUnique({
-        where: { id: jagalId },
-      });
-      if (!jagal) {
-        return res.status(404).json({ error: `Jagal with ID ${jagalId} not found` });
-      }
-    }
-
-    if (rphId) {
-      const rph = await prisma.rPH.findUnique({
-        where: { id: rphId },
-      });
-      if (!rph) {
-        return res.status(404).json({ error: `RPH with ID ${rphId} not found` });
-      }
-    }
-
-    // Create sapi record if all validations pass
-    const newSapi = await prisma.sapi.create({
-      data: { usia, jenis, kelamin, peternakId, pasarHewanId, jagalId, rphId },
+      
+      return newSapi;
     });
     
-    res.status(201).json(newSapi);
+    res.status(201).json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -80,7 +143,7 @@ exports.createSapi = async (req, res) => {
 
 exports.updateSapi = async (req, res) => {
   const { id } = req.params;
-  const { usia, jenis, kelamin, peternakId, pasarHewanId, jagalId, rphId } = req.body;
+  const { usia, jenis, kelamin, beratSapi, peternakId, pasarHewanId } = req.body;
   
   try {
     // Check if the sapi exists
@@ -89,7 +152,7 @@ exports.updateSapi = async (req, res) => {
     });
     
     if (!existingSapi) {
-      return res.status(404).json({ error: `Sapi with ID ${id} not found` });
+      return res.status(404).json({ error: `Sapi dengan ID ${id} tidak ditemukan` });
     }
     
     // Validate that referenced entities exist
@@ -98,7 +161,7 @@ exports.updateSapi = async (req, res) => {
         where: { id: peternakId },
       });
       if (!peternak) {
-        return res.status(404).json({ error: `Peternak with ID ${peternakId} not found` });
+        return res.status(404).json({ error: `Peternak dengan ID ${peternakId} tidak ditemukan` });
       }
     }
 
@@ -107,34 +170,55 @@ exports.updateSapi = async (req, res) => {
         where: { id: pasarHewanId },
       });
       if (!pasarHewan) {
-        return res.status(404).json({ error: `Pasar Hewan with ID ${pasarHewanId} not found` });
+        return res.status(404).json({ error: `Pasar Hewan dengan ID ${pasarHewanId} tidak ditemukan` });
       }
     }
 
-    if (jagalId) {
-      const jagal = await prisma.jagal.findUnique({
-        where: { id: jagalId },
+    // Update sapi and adjust jumlahSapi counts in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Track if ownership changed
+      const oldPeternakId = existingSapi.peternakId;
+      const oldPasarHewanId = existingSapi.pasarHewanId;
+      
+      // Update sapi
+      const updatedSapi = await tx.sapi.update({
+        where: { id },
+        data: { usia, jenis, kelamin, beratSapi, peternakId, pasarHewanId },
       });
-      if (!jagal) {
-        return res.status(404).json({ error: `Jagal with ID ${jagalId} not found` });
+      
+      // Adjust jumlahSapi if ownership changed
+      // Decrement old owner
+      if (oldPeternakId && oldPeternakId !== peternakId) {
+        await tx.peternak.update({
+          where: { id: oldPeternakId },
+          data: { jumlahSapi: { decrement: 1 } }
+        });
       }
-    }
-
-    if (rphId) {
-      const rph = await prisma.rPH.findUnique({
-        where: { id: rphId },
-      });
-      if (!rph) {
-        return res.status(404).json({ error: `RPH with ID ${rphId} not found` });
+      if (oldPasarHewanId && oldPasarHewanId !== pasarHewanId) {
+        await tx.pasarHewan.update({
+          where: { id: oldPasarHewanId },
+          data: { jumlahSapi: { decrement: 1 } }
+        });
       }
-    }
-
-    const updatedSapi = await prisma.sapi.update({
-      where: { id },
-      data: { usia, jenis, kelamin, peternakId, pasarHewanId, jagalId, rphId },
+      
+      // Increment new owner
+      if (peternakId && peternakId !== oldPeternakId) {
+        await tx.peternak.update({
+          where: { id: peternakId },
+          data: { jumlahSapi: { increment: 1 } }
+        });
+      }
+      if (pasarHewanId && pasarHewanId !== oldPasarHewanId) {
+        await tx.pasarHewan.update({
+          where: { id: pasarHewanId },
+          data: { jumlahSapi: { increment: 1 } }
+        });
+      }
+      
+      return updatedSapi;
     });
     
-    res.status(200).json(updatedSapi);
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -149,12 +233,31 @@ exports.deleteSapi = async (req, res) => {
     });
     
     if (!existingSapi) {
-      return res.status(404).json({ error: `Sapi with ID ${id} not found` });
+      return res.status(404).json({ error: `Sapi dengan ID ${id} tidak ditemukan` });
     }
     
-    await prisma.sapi.delete({
-      where: { id },
+    // Delete sapi and update jumlahSapi in transaction
+    await prisma.$transaction(async (tx) => {
+      // Delete sapi
+      await tx.sapi.delete({
+        where: { id },
+      });
+      
+      // Decrement jumlahSapi for owner entity
+      if (existingSapi.peternakId) {
+        await tx.peternak.update({
+          where: { id: existingSapi.peternakId },
+          data: { jumlahSapi: { decrement: 1 } }
+        });
+      }
+      if (existingSapi.pasarHewanId) {
+        await tx.pasarHewan.update({
+          where: { id: existingSapi.pasarHewanId },
+          data: { jumlahSapi: { decrement: 1 } }
+        });
+      }
     });
+    
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });

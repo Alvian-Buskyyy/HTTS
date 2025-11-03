@@ -12,6 +12,12 @@ const JagalSapi = () => {
   const [showEditForm, setShowEditForm] = useState(false);
   const [editCattle, setEditCattle] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState('');
+  
+  // QR Code states
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState('');
 
   useEffect(() => {
     setTimeout(() => {
@@ -107,13 +113,6 @@ const JagalSapi = () => {
 
   const handleEditChange = (field, value) => setEditCattle(prev => ({ ...prev, [field]: value }));
 
-  const recomputeStats = (list) => ({
-    total: list.length,
-    available: list.filter(c => c.availability === 'available').length,
-    inTrans: list.filter(c => c.availability === 'in_transaction').length,
-    needCheck: list.filter(c => c.healthStatus !== 'sehat').length,
-  });
-
   const handleSaveEdit = () => {
     if (!editCattle) return;
     if (!editCattle.type || !editCattle.gender) {
@@ -172,21 +171,155 @@ const JagalSapi = () => {
     }
   };
 
-  const handleDeleteCattle = (id) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus data ternak ini?')) return;
+  // QR Code generation function
+  const handleGenerateQR = async (cattleItem) => {
+    setQrLoading(true);
+    setQrError('');
+    
     try {
-      const rawJSON = localStorage.getItem('cattleList');
-      if (rawJSON) {
-        const raw = JSON.parse(rawJSON);
-        const next = raw.filter(item => item.id !== id);
-        localStorage.setItem('cattleList', JSON.stringify(next));
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Token tidak ditemukan. Silakan login ulang.');
       }
-      const nextUI = cattle.filter(c => c.id !== id);
-      setCattle(nextUI);
-    } catch (e) { console.error('Error deleting cattle:', e); }
+
+      const response = await fetch('http://localhost:3000/qr/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sapiId: cattleItem.id
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal menghasilkan QR code');
+      }
+
+      const data = await response.json();
+      
+      console.log('QR Code Response:', data);
+      console.log('QR Code Data URL:', data.qrCode ? data.qrCode.substring(0, 100) : 'MISSING');
+      
+      setQrCodeData({
+        qrCode: data.qrCode || data.qrImage,
+        cattleId: cattleItem.id,
+        cattleType: cattleItem.type,
+        cattleWeight: cattleItem.weight
+      });
+      setShowQRModal(true);
+      
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      setQrError(error.message || 'Gagal menghasilkan QR code. Silakan coba lagi.');
+      alert(error.message || 'Gagal menghasilkan QR code');
+    } finally {
+      setQrLoading(false);
+    }
   };
 
-  const formatDate = (s) => new Date(s).toLocaleDateString('id-ID');
+  // Print QR Code function
+  const handlePrintQR = () => {
+    if (!qrCodeData) return;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>QR Code - ${qrCodeData.cattleId}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              padding: 20px;
+            }
+            .qr-container {
+              text-align: center;
+              border: 2px solid #333;
+              padding: 20px;
+              border-radius: 8px;
+            }
+            h2 {
+              margin-top: 0;
+              color: #333;
+            }
+            .info {
+              margin: 10px 0;
+              font-size: 14px;
+            }
+            img {
+              max-width: 300px;
+              height: auto;
+            }
+            @media print {
+              body {
+                padding: 0;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="qr-container">
+            <h2>QR Code Sapi</h2>
+            <div class="info"><strong>ID:</strong> ${qrCodeData.cattleId}</div>
+            <div class="info"><strong>Jenis:</strong> ${qrCodeData.cattleType}</div>
+            <div class="info"><strong>Berat:</strong> ${qrCodeData.cattleWeight} kg</div>
+            <img src="${qrCodeData.qrCode}" alt="QR Code" />
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() {
+                window.close();
+              };
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleDeleteCattle = (cattleId) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data ternak ini?')) {
+      try {
+        const storedCattleJSON = localStorage.getItem('cattleList');
+        if (storedCattleJSON) {
+          const storedCattle = JSON.parse(storedCattleJSON);
+          const updatedCattle = storedCattle.filter(c => c.id !== cattleId);
+          localStorage.setItem('cattleList', JSON.stringify(updatedCattle));
+          const updatedCattleData = cattle.filter(c => c.id !== cattleId);
+          setCattle(updatedCattleData);
+          if (selectedCattle && selectedCattle.id === cattleId) {
+            setShowCattleModal(false);
+            setSelectedCattle(null);
+          }
+          alert('Data ternak berhasil dihapus.');
+        }
+      } catch (e) {
+        console.error('Error deleting cattle:', e);
+        alert('Gagal menghapus data ternak.');
+      }
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
 
   return (
     <DashboardLayout title="Data Sapi" role="JAGAL" customSidebar={<JagalSidebar /> }>
@@ -441,8 +574,12 @@ const JagalSapi = () => {
 
                   {!showEditForm && (
                     <div className="flex justify-end space-x-3 mt-6">
-                      <button className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100">
-                        Cetak QR
+                      <button 
+                        className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50" 
+                        onClick={() => handleGenerateQR(selectedCattle)}
+                        disabled={qrLoading}
+                      >
+                        {qrLoading ? 'Menghasilkan QR Code...' : 'Cetak QR'}
                       </button>
                       <button className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600" onClick={()=>openEditForm(selectedCattle)}>
                         Edit Data
@@ -460,6 +597,79 @@ const JagalSapi = () => {
                       )}
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+          {/* QR Code Modal */}
+          {showQRModal && qrCodeData && (
+            <div className="fixed inset-0 flex items-center justify-center z-[70] bg-black bg-opacity-50">
+              <div className="bg-white rounded-lg max-w-md w-full mx-4 shadow-xl">
+                <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 flex justify-between items-center">
+                  <h3 className="text-xl font-semibold text-white">QR Code Sapi</h3>
+                  <button 
+                    onClick={() => {
+                      setShowQRModal(false);
+                      setQrCodeData(null);
+                      setQrError('');
+                    }} 
+                    className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="p-6">
+                  {qrError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                      <i className="fas fa-exclamation-circle mr-2"></i>{qrError}
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center">
+                    <div className="mb-4 text-center">
+                      <p className="text-sm text-gray-600">ID Sapi</p>
+                      <p className="font-bold text-lg text-gray-800">{qrCodeData.cattleId}</p>
+                      <div className="mt-2 flex justify-center gap-4 text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">Jenis:</span> {qrCodeData.cattleType}
+                        </div>
+                        <div>
+                          <span className="font-medium">Berat:</span> {qrCodeData.cattleWeight} kg
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white p-4 rounded-lg border-2 border-gray-200 mb-4">
+                      <img 
+                        src={qrCodeData.qrCode} 
+                        alt="QR Code" 
+                        className="w-64 h-64 object-contain"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-3 w-full">
+                      <button 
+                        onClick={handlePrintQR}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium"
+                      >
+                        <i className="fas fa-print mr-2"></i> Cetak
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = qrCodeData.qrCode;
+                          link.download = `QR_Sapi_${qrCodeData.cattleId}.png`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition font-medium"
+                      >
+                        <i className="fas fa-download mr-2"></i> Unduh
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

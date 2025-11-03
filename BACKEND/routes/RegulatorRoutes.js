@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const regulatorController = require('../controllers/regulatorController');
+const regulatorController = require('../controllers/RegulatorController');
 
 router.get('/', regulatorController.getAllRegulators);
 router.get('/:id', regulatorController.getRegulatorById);

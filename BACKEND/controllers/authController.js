@@ -19,12 +19,20 @@ const handleCorsResponse = (res) => {
  * Controller untuk mendaftarkan user baru (signup)
  */
 exports.signup = async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const { username, email, password, role, profileData } = req.body;
 
   // Validasi input dasar
   if (!username || !email || !password || !role) {
     return res.status(400).json({ 
       message: 'Username, email, password, dan role diperlukan' 
+    });
+  }
+
+  // Validasi role yang valid
+  const validRoles = ['PETERNAK', 'PASAR_HEWAN', 'JAGAL', 'RPH', 'DISTRIBUTOR', 'HOREKA', 'END_CUSTOMER', 'REGULATOR'];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ 
+      message: `Role tidak valid. Role yang tersedia: ${validRoles.join(', ')}` 
     });
   }
 
@@ -43,35 +51,191 @@ exports.signup = async (req, res) => {
     // Hash password sebelum disimpan ke database
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Buat user baru
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPassword,
-        role,
-      },
+    // Buat user baru dan entity terkait dalam transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Buat user baru
+      const newUser = await tx.user.create({
+        data: {
+          username,
+          email,
+          password: hashedPassword,
+          role,
+        },
+      });
+
+      // 2. Buat data di table entity sesuai role
+      let entityData = null;
+      
+      // Prepare base entity data
+      const baseEntityData = {
+        nama: profileData.nama || username,
+        alamat: profileData.alamat || '',
+        noTelepon: profileData.noTelepon || '',
+      };
+
+      switch (role) {
+        case 'PETERNAK':
+          // Peternak menggunakan id user sebagai primary key (tidak auto-generated)
+          entityData = await tx.peternak.create({
+            data: {
+              id: newUser.id, 
+              nama: baseEntityData.nama,
+              alamat: baseEntityData.alamat,
+              noTelepon: baseEntityData.noTelepon,
+              jumlahSapi: 0,
+              sertifikatNKV: req.body.sertifikatNKV || null,
+            },
+          }),
+          entityData = await tx.profile.create({
+            data: {
+              entityType: 'PETERNAK',
+              peternakId: newUser.id,
+              userId: newUser.id,
+            }
+          });
+          break;
+
+        case 'PASAR_HEWAN':
+          // Pasar Hewan menggunakan auto-generated UUID dan userId untuk relasi
+          entityData = await tx.pasarHewan.create({
+            data: {
+              nama: baseEntityData.nama,
+              alamat: baseEntityData.alamat,
+              noTelepon: baseEntityData.noTelepon,
+              jumlahSapi: 0,
+              sertifikatNKV: req.body.sertifikatNKV || null,
+              userId: newUser.id,
+            },
+          });
+          break;
+
+        case 'JAGAL':
+          entityData = await tx.jagal.create({
+            data: {
+              nama: baseEntityData.nama,
+              alamat: baseEntityData.alamat,
+              noTelepon: baseEntityData.noTelepon,
+              jumlahSapi: 0,
+              jumlahDaging: 0,
+              sertifikatNKV: req.body.sertifikatNKV || null,
+              userId: newUser.id,
+            },
+          }),
+          entityData = await tx.profile.create({
+            data: {
+              entityType: 'JAGAL',
+            }
+          });
+          break;
+
+        case 'RPH':
+          entityData = await tx.rPH.create({
+            data: {
+              nama: baseEntityData.nama,
+              alamat: baseEntityData.alamat,
+              noTelepon: baseEntityData.noTelepon,
+              sertifikatNKV: req.body.sertifikatNKV || null,
+              sertifikatHalal: req.body.sertifikatHalal || null,
+              namaJuleha: req.body.namaJuleha || null,
+              noSertifJuleha: req.body.noSertifJuleha || null,
+              jumlahPenyelia: req.body.jumlahPenyelia || 0,
+              userId: newUser.id,
+            },
+          });
+          break;
+
+        case 'DISTRIBUTOR':
+          entityData = await tx.distributor.create({
+            data: {
+              namaUsaha: baseEntityData.nama,
+              alamat: baseEntityData.alamat,
+              noTelepon: baseEntityData.noTelepon,
+              kondisiProduk: req.body.kondisiProduk || null,
+              fasilitasPenyimpanan: req.body.fasilitasPenyimpanan || null,
+              userId: newUser.id,
+            },
+          });
+          break;
+
+        case 'HOREKA':
+          entityData = await tx.horeka.create({
+            data: {
+              nama: baseEntityData.nama,
+              alamat: baseEntityData.alamat,
+              noTelepon: baseEntityData.noTelepon,
+              kondisiProduk: req.body.kondisiProduk || null,
+              userId: newUser.id,
+            },
+          });
+          break;
+
+        case 'END_CUSTOMER':
+          entityData = await tx.endCustomer.create({
+            data: {
+              nama: baseEntityData.nama,
+              alamat: baseEntityData.alamat,
+              noTelepon: baseEntityData.noTelepon,
+              userId: newUser.id,
+            },
+          });
+          break;
+
+        case 'REGULATOR':
+          entityData = await tx.regulator.create({
+            data: {
+              nama: baseEntityData.nama,
+              instansi: req.body.instansi || '',
+              jabatan: req.body.jabatan || '',
+              userId: newUser.id,
+            },
+          });
+          break;
+
+        default:
+          throw new Error(`Role ${role} tidak memiliki entity table yang sesuai`);
+      }
+
+      return { newUser, entityData };
     });
+
+    const { newUser, entityData } = result;
 
     // Hapus password dari response
     const { password: _, ...userWithoutPassword } = newUser;
 
-    // Generate token untuk user baru
+    // Generate token untuk user baru dengan entityId
     const token = jwt.sign(
-      { id: newUser.id, email: newUser.email, role: newUser.role },
+      { 
+        id: newUser.id, 
+        email: newUser.email, 
+        role: newUser.role,
+        entityId: entityData.id // Tambahkan entityId ke token
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Kirim response sukses dengan token
+    // Kirim response sukses dengan token dan entity data
     handleCorsResponse(res).status(201).json({
       message: 'User berhasil terdaftar',
-      user: userWithoutPassword,
+      user: {
+        ...userWithoutPassword,
+        entityId: entityData.id,
+        entityData: {
+          id: entityData.id,
+          nama: entityData.nama,
+          alamat: entityData.alamat,
+          noTelepon: entityData.noTelepon,
+        }
+      },
       token
     });
   } catch (error) {
     console.error('Signup error:', error);
-    res.status(500).json({ message: 'Terjadi kesalahan saat mendaftarkan user', error: error.message });
+    res.status(500).json({ 
+      message: 'Terjadi kesalahan saat mendaftarkan user', 
+      error: error.message 
+    });
   }
 };
 
@@ -105,22 +269,89 @@ exports.signin = async (req, res) => {
       return res.status(401).json({ message: 'Password salah' });
     }
 
+    // Cari entity data berdasarkan role
+    let entityData = null;
+    try {
+      switch (user.role) {
+        case 'PETERNAK':
+          entityData = await prisma.peternak.findFirst({
+            where: { id: user.id }
+          });
+          break;
+        case 'PASAR_HEWAN':
+          entityData = await prisma.pasarHewan.findFirst({
+            where: { userId: user.id }
+          });
+          break;
+        case 'JAGAL':
+          entityData = await prisma.jagal.findFirst({
+            where: { userId: user.id }
+          });
+          break;
+        case 'RPH':
+          entityData = await prisma.rPH.findFirst({
+            where: { userId: user.id }
+          });
+          break;
+        case 'DISTRIBUTOR':
+          entityData = await prisma.distributor.findFirst({
+            where: { userId: user.id }
+          });
+          break;
+        case 'HOREKA':
+          entityData = await prisma.horeka.findFirst({
+            where: { userId: user.id }
+          });
+          break;
+        case 'END_CUSTOMER':
+          entityData = await prisma.endCustomer.findFirst({
+            where: { userId: user.id }
+          });
+          break;
+        case 'REGULATOR':
+          entityData = await prisma.regulator.findFirst({
+            where: { userId: user.id }
+          });
+          break;
+      }
+    } catch (entityError) {
+      console.warn(`Warning: Could not fetch entity data for role ${user.role}:`, entityError.message);
+    }
+
     // Hapus password dari response
     const { password: _, ...userWithoutPassword } = user;
 
-    // Generate token untuk user
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // Generate token untuk user dengan entityId jika ada
+    const tokenPayload = { 
+      id: user.id, 
+      email: user.email, 
+      role: user.role 
+    };
+    
+    if (entityData) {
+      tokenPayload.entityId = entityData.id;
+    }
 
-    // Kirim response sukses dengan token
-    handleCorsResponse(res).status(200).json({
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
+
+    // Kirim response sukses dengan token dan entity data
+    const responseData = {
       message: 'Login berhasil',
       user: userWithoutPassword,
       token
-    });
+    };
+
+    if (entityData) {
+      responseData.user.entityId = entityData.id;
+      responseData.user.entityData = {
+        id: entityData.id,
+        nama: entityData.nama,
+        alamat: entityData.alamat,
+        noTelepon: entityData.noTelepon,
+      };
+    }
+
+    handleCorsResponse(res).status(200).json(responseData);
   } catch (error) {
     console.error('Signin error:', error);
     res.status(500).json({ message: 'Terjadi kesalahan saat login', error: error.message });

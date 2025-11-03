@@ -1,0 +1,9 @@
+- [x] Database sapi di tambah Berat sapi dan ID indukan jantan dihilangkan
+- [x] Database profil ditambah foto profil
+- [ ] Memastikan setiap tujuan transaksi itu entitas yang sudah masuk dalam sistem
+- [ ] Masih banyak ngecek di transaksi penyembelihan di rph
+- [ ] Pengecekan halal dan sehat juga masih perlu dicek dan di diskusikan
+- [x] Frontend tampilan di dashboard untuk inventaris sapi disesuaikan dengan sapi yang di input oleh masing masing entitas
+- [x] Generate qr e yaopo
+- [ ] Up ipfs sehabis transaksi iku yo durung
+- [x] Mbe seng nde landing page iku kan enek Teman Halal nah iku yoyo sesuaikan mbe entitas seng wes terdaftar

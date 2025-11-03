@@ -63,3 +63,65 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Update profile photo
+exports.updateProfilePhoto = async (req, res) => {
+  const { userId } = req.params;
+  const { profilePhoto } = req.body;
+  
+  try {
+    // Check if profile exists
+    const existingProfile = await prisma.profile.findUnique({
+      where: { userId: userId }
+    });
+
+    let updatedProfile;
+    if (existingProfile) {
+      // Update existing profile
+      updatedProfile = await prisma.profile.update({
+        where: { userId: userId },
+        data: { profilePhoto }
+      });
+    } else {
+      // Create new profile if doesn't exist
+      updatedProfile = await prisma.profile.create({
+        data: {
+          userId: userId,
+          profilePhoto
+        }
+      });
+    }
+    
+    res.status(200).json(updatedProfile);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get user with profile and entity data
+exports.getUserProfile = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: id },
+      include: {
+        profile: true,
+        peternak: true,
+        jagal: true,
+        rph: true,
+        pasarHewan: true,
+        distributor: true,
+        horeka: true,
+        endCustomer: true
+      }
+    });
+    
+    if (user) {
+      res.status(200).json(user);
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
