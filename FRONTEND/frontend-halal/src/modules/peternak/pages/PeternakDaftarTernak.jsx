@@ -6,7 +6,6 @@ const PeternakDaftarTernak = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [peternakData, setPeternakData] = useState(null);
   const [formData, setFormData] = useState({
     jenis: '',
     customJenis: '',
@@ -24,36 +23,26 @@ const PeternakDaftarTernak = () => {
   const [availableCattle, setAvailableCattle] = useState([]);
   const [errors, setErrors] = useState({});
 
-  // Fetch peternak data and available cattle for selection as parents
+  // Fetch available cattle for parent selection
   useEffect(() => {
-    // Simulate API call to get peternak data
-    setTimeout(() => {
-      const data = {
-        id: 'peternak-123',
-        nama: 'Peternakan Sejahtera',
-      };
-      setPeternakData(data);
-
-      // Fetch available cattle for parent selection
-      const cattleData = [
-        {
-          id: 'SP001',
-          jenis: 'Sapi Jantan',
-          kelamin: 'Jantan',
-        },
-        {
-          id: 'SP002',
-          jenis: 'Sapi Betina',
-          kelamin: 'Betina',
-        },
-        {
-          id: 'SP003',
-          jenis: 'Sapi Jantan',
-          kelamin: 'Jantan',
+    const loadAvailableCattle = async () => {
+      try {
+        // Try to fetch from localStorage first
+        const storedCattleJSON = localStorage.getItem('cattleList');
+        if (storedCattleJSON) {
+          const storedCattle = JSON.parse(storedCattleJSON);
+          setAvailableCattle(storedCattle);
+        } else {
+          // If no cattle in localStorage, use empty array
+          setAvailableCattle([]);
         }
-      ];
-      setAvailableCattle(cattleData);
-    }, 1000);
+      } catch (error) {
+        console.error('Error loading cattle:', error);
+        setAvailableCattle([]);
+      }
+    };
+
+    loadAvailableCattle();
   }, []);
 
   const handleChange = (e) => {
@@ -103,7 +92,7 @@ const PeternakDaftarTernak = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -112,41 +101,65 @@ const PeternakDaftarTernak = () => {
 
     setLoading(true);
 
-    // Prepare data for API
-    const finalJenis = formData.jenis === 'other' ? formData.customJenis : formData.jenis;
-    const apiData = {
-      jenis: finalJenis,
-      kelamin: formData.kelamin,
-      usia: parseInt(formData.usia),
-      berat: parseFloat(formData.berat),
-      asalType: formData.asalType,
-      asalId: peternakData.id,
-      peternakId: peternakData.id,
-      healthStatus: formData.healthStatus,
-      availability: formData.availability,
-      tanggalLahir: formData.tanggalLahir || new Date().toISOString().split('T')[0],
-      origin: formData.origin,
-      motherId: formData.origin === 'lahir_sendiri' ? formData.motherId : null,
-      fatherId: formData.origin === 'lahir_sendiri' ? formData.fatherId : null,
-    };
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Token tidak ditemukan. Silakan login ulang.');
+        setLoading(false);
+        navigate('/login');
+        return;
+      }
 
-    console.log('Data to be sent to API:', apiData);
+      // Get user data to get peternakId
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const peternakId = userData.peternakId || userData.id || 'peternak-123';
 
-    // Simulate API call to register cattle
-    setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-
-      // Generate a unique ID for the new cattle
-      const newCattleId = `SP${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      
-      // Create the new cattle object with ID
-      const newCattle = {
-        ...apiData,
-        id: newCattleId,
+      // Prepare data for API
+      const finalJenis = formData.jenis === 'other' ? formData.customJenis : formData.jenis;
+      const apiData = {
+        jenis: finalJenis,
+        kelamin: formData.kelamin,
+        usia: parseInt(formData.usia),
+        beratSapi: parseFloat(formData.berat), // Backend expects beratSapi
+        asalType: formData.asalType,
+        asalId: peternakId,
+        peternakId: peternakId,
       };
 
-      // Save to localStorage - get existing cattle first, then add the new one
+      console.log('Sending data to API:', apiData);
+
+      // Call backend API to register cattle
+      const response = await fetch('http://localhost:3000/sapi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(apiData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Gagal mendaftarkan ternak');
+      }
+
+      console.log('Sapi berhasil didaftarkan:', data);
+
+      // Save to localStorage for offline access (with full form data)
+      const newCattle = {
+        ...apiData,
+        id: data.id,
+        berat: apiData.beratSapi,
+        healthStatus: formData.healthStatus,
+        availability: formData.availability,
+        tanggalLahir: formData.tanggalLahir || new Date().toISOString().split('T')[0],
+        origin: formData.origin,
+        motherId: formData.origin === 'lahir_sendiri' ? formData.motherId : null,
+        fatherId: formData.origin === 'lahir_sendiri' ? formData.fatherId : null,
+      };
+
       try {
         const existingCattleJSON = localStorage.getItem('cattleList');
         const existingCattle = existingCattleJSON ? JSON.parse(existingCattleJSON) : [];
@@ -155,6 +168,9 @@ const PeternakDaftarTernak = () => {
       } catch (error) {
         console.error('Error saving cattle to localStorage:', error);
       }
+
+      setLoading(false);
+      setSuccess(true);
 
       // Reset form after success and navigate to cattle list
       setTimeout(() => {
@@ -176,13 +192,16 @@ const PeternakDaftarTernak = () => {
         
         // Navigate to the cattle list page
         navigate('/peternak/sapi');
-      }, 3000);
-    }, 1500);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error registering cattle:', error);
+      alert(error.message || 'Gagal mendaftarkan ternak. Silakan coba lagi.');
+      setLoading(false);
+    }
   };
 
   // Filter cattle by gender for parent selection
-  const motherOptions = availableCattle.filter(cattle => cattle.kelamin === 'Betina');
-  const fatherOptions = availableCattle.filter(cattle => cattle.kelamin === 'Jantan');
 
   return (
     <DashboardLayout title="Daftarkan Ternak" role="PETERNAK">
@@ -346,44 +365,6 @@ const PeternakDaftarTernak = () => {
                     {errors.tanggalLahir && (
                       <p className="mt-1 text-xs text-red-500">{errors.tanggalLahir}</p>
                     )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
-                      Induk (ID Sapi Betina)
-                    </label>
-                    <select
-                      name="motherId"
-                      value={formData.motherId}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">-- Pilih Induk --</option>
-                      {motherOptions.map(cattle => (
-                        <option key={cattle.id} value={cattle.id}>
-                          {cattle.id} - {cattle.jenis}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
-                      Pejantan (ID Sapi Jantan)
-                    </label>
-                    <select
-                      name="fatherId"
-                      value={formData.fatherId}
-                      onChange={handleChange}
-                      className="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">-- Pilih Pejantan --</option>
-                      {fatherOptions.map(cattle => (
-                        <option key={cattle.id} value={cattle.id}>
-                          {cattle.id} - {cattle.jenis}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </>
               )}

@@ -14,7 +14,10 @@ exports.getPeternakById = async (req, res) => {
   const { id } = req.params;
   try {
     const peternak = await prisma.peternak.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
+      include: {
+        profiles: true
+      }
     });
     if (peternak) {
       res.status(200).json(peternak);
@@ -59,6 +62,46 @@ exports.deletePeternak = async (req, res) => {
       where: { id: parseInt(id) },
     });
     res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get peternak by userId
+exports.getPeternakByUserId = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const peternak = await prisma.peternak.findUnique({
+      where: { id: userId },
+      include: {
+        user: {
+          include: {
+            profile: true
+          }
+        }
+      }
+    });
+    if (peternak) {
+      res.status(200).json(peternak);
+    } else {
+      res.status(404).json({ error: 'Peternak not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update peternak by userId
+exports.updatePeternakByUserId = async (req, res) => {
+  const { userId } = req.params;
+  const { nama, alamat, noTelepon, jumlahSapi, sertifikatNKV } = req.body;
+  try {
+    const updatedPeternak = await prisma.peternak.update({
+      where: { userId: userId },
+      data: { nama, alamat, noTelepon, jumlahSapi: jumlahSapi ? parseInt(jumlahSapi) : undefined, sertifikatNKV },
+    });
+    res.status(200).json(updatedPeternak);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -9,6 +9,17 @@ const LandingPage = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [activeSection, setActiveSection] = useState('');
+  const [partners, setPartners] = useState([]);
+  const [partnersLoading, setPartnersLoading] = useState(true);
+  const [partnersStats, setPartnersStats] = useState({
+    peternak: 0,
+    pasarHewan: 0,
+    jagal: 0,
+    rph: 0,
+    distributor: 0,
+    horeka: 0,
+    total: 0
+  });
   
   // Tab functionality
   const handleTabClick = (tabId) => {
@@ -19,6 +30,30 @@ const LandingPage = () => {
   const handleFilterClick = (filterValue) => {
     setActiveFilter(filterValue);
   };
+
+  // Fetch partners from backend
+  useEffect(() => {
+    const fetchPartners = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/entities');
+        if (!response.ok) {
+          throw new Error('Failed to fetch partners');
+        }
+        const result = await response.json();
+        if (result.success) {
+          setPartners(result.data);
+          setPartnersStats(result.count);
+        }
+      } catch (error) {
+        console.error('Error fetching partners:', error);
+        // Keep mock data if API fails
+      } finally {
+        setPartnersLoading(false);
+      }
+    };
+
+    fetchPartners();
+  }, []);
 
   // Semua fungsi login telah dipindahkan ke komponen LoginModal
 
@@ -58,75 +93,7 @@ const LandingPage = () => {
     };
   }, []);
 
-  // Partner data
-  const partners = [
-    {
-      id: 1,
-      name: 'Peternakan Ahmad',
-      type: 'farmer',
-      location: 'Bogor, Jawa Barat',
-      description: 'Peternakan sapi premium dengan penanganan hewan yang etis dan praktik pemberian pakan halal.',
-      icon: 'fas fa-tractor',
-      color: 'primary',
-      since: '2021',
-      certification: 'Tersertifikasi NKV'
-    },
-    {
-      id: 2,
-      name: 'Pasar Al-Falah',
-      type: 'animal-market',
-      location: 'Tangerang, Banten',
-      description: 'Mengkhususkan diri dalam perdagangan ternak yang bersumber secara etis dan ditangani dengan baik.',
-      icon: 'fas fa-cow',
-      color: 'yellow-500',
-      since: '2020',
-      certification: 'Tersertifikasi NKV'
-    },
-    {
-      id: 3,
-      name: 'RPH Al-Amin',
-      type: 'slaughterhouse',
-      location: 'Jakarta',
-      description: 'Rumah potong hewan bersertifikat halal dengan spesialis JULEHA terlatih dan fasilitas yang memadai.',
-      icon: 'fas fa-kaaba',
-      color: 'red-500',
-      since: '2019',
-      certification: 'Tersertifikasi Halal'
-    },
-    {
-      id: 4,
-      name: 'Distributor Al-Baraka',
-      type: 'distributor',
-      location: 'Depok, Jawa Barat',
-      description: 'Spesialis rantai dingin yang memastikan daging halal diangkut dengan integritas dan keamanan.',
-      icon: 'fas fa-truck-loading',
-      color: 'indigo-500',
-      since: '2021',
-      certification: 'Tersertifikasi BPOM'
-    },
-    {
-      id: 5,
-      name: 'Restoran Sakinah',
-      type: 'horeca',
-      location: 'Jakarta',
-      description: 'Menyajikan masakan autentik dengan daging bersertifikat halal yang bersumber melalui sistem penelusuran kami.',
-      icon: 'fas fa-utensils',
-      color: 'green-500',
-      since: '2022',
-      certification: 'Tersertifikasi Halal'
-    },
-    {
-      id: 6,
-      name: 'Grup Hotel Barokah',
-      type: 'horeca',
-      location: 'Berbagai Lokasi',
-      description: 'Jaringan hotel premium yang menyajikan daging halal terverifikasi di semua restoran dan layanan katering mereka.',
-      icon: 'fas fa-hotel',
-      color: 'green-500',
-      since: '2020',
-      certification: 'Tersertifikasi Halal'
-    }
-  ];
+  // Partner data akan diambil dari backend (lihat useEffect)
   
   // Testimonials data
   const testimonials = [
@@ -510,7 +477,9 @@ const LandingPage = () => {
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl heading-larger font-bold text-gray-900 mb-4">Jaringan #TemanHalal Kami</h2>
             <div className="w-20 h-1 bg-primary mx-auto"></div>
-            <p className="mt-4 text-gray-600 text-lg md:text-xl font-larger max-w-3xl mx-auto">Temui jaringan bisnis bersertifikat halal terpercaya kami di seluruh rantai pasokan</p>
+            <p className="mt-4 text-gray-600 text-lg md:text-xl font-larger max-w-3xl mx-auto">
+              Temui jaringan {partnersStats.total} bisnis bersertifikat halal terpercaya kami di seluruh rantai pasokan
+            </p>
           </div>
           
           {/* Entity Type Filter */}
@@ -554,9 +523,20 @@ const LandingPage = () => {
           </div>
           
           {/* Partner Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {filteredPartners.map(partner => (
-              <div key={partner.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+          {partnersLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              <span className="ml-3 text-gray-600">Memuat mitra...</span>
+            </div>
+          ) : filteredPartners.length === 0 ? (
+            <div className="text-center py-12">
+              <i className="fas fa-users text-4xl text-gray-400 mb-4"></i>
+              <p className="text-gray-600 text-lg">Belum ada mitra yang terdaftar dalam kategori ini.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {filteredPartners.map(partner => (
+                <div key={partner.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className={`h-32 ${partner.color === 'primary' ? 'bg-primary' : 
                   partner.color === 'yellow-500' ? 'bg-yellow-500' : 
                   partner.color === 'red-500' ? 'bg-red-500' : 
@@ -593,7 +573,8 @@ const LandingPage = () => {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
           
           {/* View More Button */}
           <div className="text-center">

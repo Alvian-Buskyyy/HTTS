@@ -2,10 +2,14 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const path = require('path');
 const prisma = require('./prisma/client');
 
 // Middleware
 app.use(bodyParser.json());
+
+// Serve static files for uploaded photos
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Konfigurasi CORS
 const corsOptions = {
@@ -34,11 +38,14 @@ const transaksiPenjualanRoutes = require('./routes/transaksiPenjualanRoutes');
 const pengecekanSehatRoutes = require('./routes/pengecekanSehatRoutes');
 const pengecekanHalalSehatRoutes = require('./routes/pengecekanHalalSehatRoutes');
 const qrRoutes = require('./routes/qrRoutes');
-const itemSehatRoutes = require('./routes/itemSehatRoutes');
-const itemHalalSehatRoutes = require('./routes/itemHalalSehatRoutes');
-const regulatorRoutes = require('./routes/regulatorRoutes');
+const itemSehatRoutes = require('./routes/ItemSehatRoutes');
+const itemHalalSehatRoutes = require('./routes/ItemHalalSehatRoutes');
+const regulatorRoutes = require('./routes/RegulatorRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
+const entityRoutes = require('./routes/entityRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 
 app.use('/peternak', peternakRoutes);
 app.use('/pasarHewan', pasarHewanRoutes);
@@ -59,6 +66,9 @@ app.use('/itemHalalSehat', itemHalalSehatRoutes);
 app.use('/regulator', regulatorRoutes);
 app.use('/users', userRoutes);
 app.use('/auth', authRoutes);
+app.use('/entities', entityRoutes);
+app.use('/upload', uploadRoutes);
+app.use('/profile', profileRoutes);
 
 
 // Start server

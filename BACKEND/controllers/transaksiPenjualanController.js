@@ -29,123 +29,145 @@ exports.getTransaksiPenjualanById = async (req, res) => {
 
 exports.createTransaksiPenjualan = async (req, res) => {
   const { 
-    penjualType, pembeliType,
-    peternakPenjualId, pasarHewanPenjualId, jagalPenjualId, rphPenjualId, distributorPenjualId, horekaPenjualId,
-    peternakPembeliId, pasarHewanPembeliId, jagalPembeliId, rphPembeliId, distributorPembeliId, horekaPembeliId,
-    sapiId, dagingId, jumlahQty, pengecekanSehatId, type, timestamp
+    penjualType, pembeliType, penjualId, pembeliId,
+    sapiId, dagingId, jumlahQty, type
   } = req.body;
   
   try {
-    // Validate penjual ID exists
-    let penjualExists = false;
-    if (penjualType === 'PETERNAK' && peternakPenjualId) {
-      const penjual = await prisma.peternak.findUnique({ where: { id: peternakPenjualId } });
-      if (!penjual) return res.status(404).json({ error: `Peternak seller with ID ${peternakPenjualId} not found` });
-      penjualExists = true;
-    } else if (penjualType === 'PASAR_HEWAN' && pasarHewanPenjualId) {
-      const penjual = await prisma.pasarHewan.findUnique({ where: { id: pasarHewanPenjualId } });
-      if (!penjual) return res.status(404).json({ error: `PasarHewan seller with ID ${pasarHewanPenjualId} not found` });
-      penjualExists = true;
-    } else if (penjualType === 'JAGAL' && jagalPenjualId) {
-      const penjual = await prisma.jagal.findUnique({ where: { id: jagalPenjualId } });
-      if (!penjual) return res.status(404).json({ error: `Jagal seller with ID ${jagalPenjualId} not found` });
-      penjualExists = true;
-    } else if (penjualType === 'RPH' && rphPenjualId) {
-      const penjual = await prisma.rPH.findUnique({ where: { id: rphPenjualId } });
-      if (!penjual) return res.status(404).json({ error: `RPH seller with ID ${rphPenjualId} not found` });
-      penjualExists = true;
-    } else if (penjualType === 'DISTRIBUTOR' && distributorPenjualId) {
-      const penjual = await prisma.distributor.findUnique({ where: { id: distributorPenjualId } });
-      if (!penjual) return res.status(404).json({ error: `Distributor seller with ID ${distributorPenjualId} not found` });
-      penjualExists = true;
-    } else if (penjualType === 'HOREKA' && horekaPenjualId) {
-      const penjual = await prisma.horeka.findUnique({ where: { id: horekaPenjualId } });
-      if (!penjual) return res.status(404).json({ error: `Horeka seller with ID ${horekaPenjualId} not found` });
-      penjualExists = true;
-    }
-    
-    if (!penjualExists) {
-      return res.status(400).json({ error: 'Invalid or missing seller type and ID' });
-    }
+    // Helper function untuk validasi entitas
+    const validateEntity = async (entityType, entityId, role) => {
+      let entity = null;
+      const errorPrefix = role === 'penjual' ? 'Penjual' : 'Pembeli';
+      
+      switch (entityType) {
+        case 'PETERNAK':
+          entity = await prisma.peternak.findUnique({ where: { id: entityId } });
+          if (!entity) throw new Error(`${errorPrefix} Peternak dengan ID ${entityId} tidak ditemukan dalam sistem`);
+          break;
+        case 'PASAR_HEWAN':
+          entity = await prisma.pasarHewan.findUnique({ where: { id: entityId } });
+          if (!entity) throw new Error(`${errorPrefix} Pasar Hewan dengan ID ${entityId} tidak ditemukan dalam sistem`);
+          break;
+        case 'JAGAL':
+          entity = await prisma.jagal.findUnique({ where: { id: entityId } });
+          if (!entity) throw new Error(`${errorPrefix} Jagal dengan ID ${entityId} tidak ditemukan dalam sistem`);
+          break;
+        case 'RPH':
+          entity = await prisma.rPH.findUnique({ where: { id: entityId } });
+          if (!entity) throw new Error(`${errorPrefix} RPH dengan ID ${entityId} tidak ditemukan dalam sistem`);
+          break;
+        case 'DISTRIBUTOR':
+          entity = await prisma.distributor.findUnique({ where: { id: entityId } });
+          if (!entity) throw new Error(`${errorPrefix} Distributor dengan ID ${entityId} tidak ditemukan dalam sistem`);
+          break;
+        case 'HOREKA':
+          entity = await prisma.horeka.findUnique({ where: { id: entityId } });
+          if (!entity) throw new Error(`${errorPrefix} Horeka dengan ID ${entityId} tidak ditemukan dalam sistem`);
+          break;
+        default:
+          throw new Error(`Tipe entitas ${entityType} tidak valid`);
+      }
+      
+      return entity;
+    };
 
-    // Validate pembeli ID exists
-    let pembeliExists = false;
-    if (pembeliType === 'PETERNAK' && peternakPembeliId) {
-      const pembeli = await prisma.peternak.findUnique({ where: { id: peternakPembeliId } });
-      if (!pembeli) return res.status(404).json({ error: `Peternak buyer with ID ${peternakPembeliId} not found` });
-      pembeliExists = true;
-    } else if (pembeliType === 'PASAR_HEWAN' && pasarHewanPembeliId) {
-      const pembeli = await prisma.pasarHewan.findUnique({ where: { id: pasarHewanPembeliId } });
-      if (!pembeli) return res.status(404).json({ error: `PasarHewan buyer with ID ${pasarHewanPembeliId} not found` });
-      pembeliExists = true;
-    } else if (pembeliType === 'JAGAL' && jagalPembeliId) {
-      const pembeli = await prisma.jagal.findUnique({ where: { id: jagalPembeliId } });
-      if (!pembeli) return res.status(404).json({ error: `Jagal buyer with ID ${jagalPembeliId} not found` });
-      pembeliExists = true;
-    } else if (pembeliType === 'RPH' && rphPembeliId) {
-      const pembeli = await prisma.rPH.findUnique({ where: { id: rphPembeliId } });
-      if (!pembeli) return res.status(404).json({ error: `RPH buyer with ID ${rphPembeliId} not found` });
-      pembeliExists = true;
-    } else if (pembeliType === 'DISTRIBUTOR' && distributorPembeliId) {
-      const pembeli = await prisma.distributor.findUnique({ where: { id: distributorPembeliId } });
-      if (!pembeli) return res.status(404).json({ error: `Distributor buyer with ID ${distributorPembeliId} not found` });
-      pembeliExists = true;
-    } else if (pembeliType === 'HOREKA' && horekaPembeliId) {
-      const pembeli = await prisma.horeka.findUnique({ where: { id: horekaPembeliId } });
-      if (!pembeli) return res.status(404).json({ error: `Horeka buyer with ID ${horekaPembeliId} not found` });
-      pembeliExists = true;
-    }
+    // Validate penjual exists in system
+    await validateEntity(penjualType, penjualId, 'penjual');
     
-    if (!pembeliExists) {
-      return res.status(400).json({ error: 'Invalid or missing buyer type and ID' });
-    }
+    // Validate pembeli exists in system
+    await validateEntity(pembeliType, pembeliId, 'pembeli');
 
     // Validate item being sold
     if (sapiId) {
-      const sapi = await prisma.sapi.findUnique({ where: { id: sapiId } });
-      if (!sapi) return res.status(404).json({ error: `Sapi with ID ${sapiId} not found` });
+      const sapi = await prisma.sapi.findUnique({ 
+        where: { id: sapiId },
+        include: {
+          peternak: true,
+          pasarHewan: true,
+          pengecekanSehat: true,
+        }
+      });
+      if (!sapi) {
+        return res.status(404).json({ error: `Sapi dengan ID ${sapiId} tidak ditemukan` });
+      }
     }
     
     if (dagingId) {
-      const daging = await prisma.daging.findUnique({ where: { id: dagingId } });
-      if (!daging) return res.status(404).json({ error: `Daging with ID ${dagingId} not found` });
+      const daging = await prisma.daging.findUnique({ 
+        where: { id: dagingId },
+        include: {
+          sapi: true,
+        }
+      });
+      if (!daging) {
+        return res.status(404).json({ error: `Daging dengan ID ${dagingId} tidak ditemukan` });
+      }
     }
 
     if (!sapiId && !dagingId) {
-      return res.status(400).json({ error: 'Either sapiId or dagingId must be provided' });
+      return res.status(400).json({ error: 'sapiId atau dagingId harus diisi' });
     }
 
-    // Store transaction in IPFS and database
-    const transaksiData = req.body;
+    // Prepare transaction data for IPFS
+    const timestamp = new Date();
+    const transaksiData = {
+      penjualType,
+      penjualId,
+      pembeliType,
+      pembeliId,
+      sapiId,
+      dagingId,
+      jumlahQty,
+      type,
+      timestamp: timestamp.toISOString(),
+    };
+    
+    // Upload to IPFS
     const transaksiDataString = JSON.stringify(transaksiData);
     const cid = await uploadToIPFS(transaksiDataString);
 
+    // Create transaction record
     const newTransaksiPenjualan = await prisma.transaksiPenjualan.create({
       data: {
         penjualType, 
+        penjualId,
         pembeliType,
-        peternakPenjualId, 
-        pasarHewanPenjualId, 
-        jagalPenjualId, 
-        rphPenjualId, 
-        distributorPenjualId, 
-        horekaPenjualId,
-        peternakPembeliId, 
-        pasarHewanPembeliId, 
-        jagalPembeliId, 
-        rphPembeliId, 
-        distributorPembeliId, 
-        horekaPembeliId,
+        pembeliId,
         sapiId,
         dagingId, 
         jumlahQty, 
-        pengecekanSehatId, 
         type, 
-        timestamp: new Date(timestamp || Date.now()),
+        timestamp,
         cid
       },
     });
-    res.status(201).json(newTransaksiPenjualan);
+    
+    // Update ownership of sapi or daging
+    if (sapiId) {
+      const updateData = {};
+      
+      // Clear old ownership
+      updateData.peternakId = null;
+      updateData.pasarHewanId = null;
+      
+      // Set new ownership based on pembeli type
+      if (pembeliType === 'PETERNAK') {
+        updateData.peternakId = pembeliId;
+      } else if (pembeliType === 'PASAR_HEWAN') {
+        updateData.pasarHewanId = pembeliId;
+      }
+      
+      await prisma.sapi.update({
+        where: { id: sapiId },
+        data: updateData,
+      });
+    }
+    
+    res.status(201).json({
+      message: 'Transaksi penjualan berhasil dibuat dan disimpan ke IPFS',
+      data: newTransaksiPenjualan,
+      ipfsCid: cid,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

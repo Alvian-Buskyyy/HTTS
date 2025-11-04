@@ -122,15 +122,6 @@ const SignUp = () => {
                 className="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Jumlah Sapi</label>
-              <input 
-                type="number" 
-                name="jumlahSapi" 
-                onChange={handleDynamicFieldChange} 
-                className="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border"
-              />
-            </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Sertifikat NKV (opsional)</label>
               <input 

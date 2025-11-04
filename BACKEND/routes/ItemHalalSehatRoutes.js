@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const itemHalalSehatController = require('../controllers/itemHalalSehatController');
+const itemHalalSehatController = require('../controllers/ItemHalalSehatController');
 
 router.get('/', itemHalalSehatController.getAllItemHalalSehat);
 router.get('/:id', itemHalalSehatController.getItemHalalSehatById);

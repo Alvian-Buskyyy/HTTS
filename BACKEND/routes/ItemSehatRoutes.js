@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const itemSehatController = require('../controllers/itemSehatController');
+const itemSehatController = require('../controllers/ItemSehatController');
 
 router.get('/', itemSehatController.getAllItemSehat);
 router.get('/:id', itemSehatController.getItemSehatById);
