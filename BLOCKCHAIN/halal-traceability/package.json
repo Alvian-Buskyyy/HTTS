@@ -1,0 +1,15 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "busky",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "ipfs-http-client": "^58.0.0",
+    "web3": "^1.10.0"
+  }
+}

@@ -1,0 +1,108 @@
+import { BrowserRouter as Router } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import './App.css';
+import AppRoutes from './routes';
+import AuthContext from './context/AuthContext';
+
+function App() {
+  // State untuk menyimpan status autentikasi dan user info
+  const [auth, setAuth] = useState({
+    isAuthenticated: false,
+    user: null,
+    loading: true
+  });
+
+  // Periksa token dan status autentikasi saat aplikasi dimuat
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const savedUser = localStorage.getItem('user');
+        
+        if (!token || !savedUser) {
+          setAuth({
+            isAuthenticated: false,
+            user: null,
+            loading: false
+          });
+          return;
+        }
+        
+        // Parse user data
+        const user = JSON.parse(savedUser);
+        
+        // Validasi token dengan backend (opsional)
+        const response = await fetch('http://localhost:3000/auth/validate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          setAuth({
+            isAuthenticated: true,
+            user,
+            loading: false
+          });
+        } else {
+          // Token tidak valid, hapus dari localStorage
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setAuth({
+            isAuthenticated: false,
+            user: null,
+            loading: false
+          });
+        }
+      } catch (error) {
+        console.error('Error validating authentication:', error);
+        setAuth({
+          isAuthenticated: false,
+          user: null,
+          loading: false
+        });
+      }
+    };
+    
+    checkAuthStatus();
+  }, []);
+
+  // Function to update auth state after login
+  const login = (userData, token) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setAuth({
+      isAuthenticated: true,
+      user: userData,
+      loading: false
+    });
+  };
+
+  // Function to handle logout
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setAuth({
+      isAuthenticated: false,
+      user: null,
+      loading: false
+    });
+  };
+
+  // Show loading indicator while checking auth status
+  if (auth.loading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  return (
+    <AuthContext.Provider value={{ auth, login, logout }}>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthContext.Provider>
+  );
+}
+
+export default App;
