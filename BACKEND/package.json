@@ -20,6 +20,7 @@
     "ipfs-http-client": "^58.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "nodemailer": "^7.0.11",
     "qrcode": "^1.5.3"
   },
   "devDependencies": {

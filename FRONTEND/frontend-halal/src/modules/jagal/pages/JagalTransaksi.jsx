@@ -156,8 +156,8 @@ const JagalTransaksi = () => {
     { id: 'RPH-003', name: 'RPH Sentosa' }
   ]);
   const [distributorOptions] = useState([
-    { id: 'DIST-001', name: 'Distributor A' },
-    { id: 'DIST-002', name: 'Distributor B' }
+    // { id: 'DIST-001', name: 'Distributor A' },
+    // { id: 'DIST-002', name: 'Distributor B' }
   ]);
   // Slaughter verification modal states
   const [showVerifySlaughterModal, setShowVerifySlaughterModal] = useState(false);

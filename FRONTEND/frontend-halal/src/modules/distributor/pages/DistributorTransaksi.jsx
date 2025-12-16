@@ -30,7 +30,7 @@ const DistributorTransaksi = () => {
           { url: `${API_BASE}/pasarHewan`, type: 'PASAR_HEWAN', nameKey: 'nama' },
           { url: `${API_BASE}/jagal`, type: 'JAGAL', nameKey: 'nama' },
           { url: `${API_BASE}/rph`, type: 'RPH', nameKey: 'nama' },
-          { url: `${API_BASE}/distributor`, type: 'DISTRIBUTOR', nameKey: 'namaUsaha' },
+          // { url: `${API_BASE}/distributor`, type: 'DISTRIBUTOR', nameKey: 'namaUsaha' },
           { url: `${API_BASE}/horeka`, type: 'HOREKA', nameKey: 'nama' },
           { url: `${API_BASE}/endCustomer`, type: 'END_CUSTOMER', nameKey: 'nama' },
         ];

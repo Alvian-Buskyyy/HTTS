@@ -33,6 +33,7 @@ enum VerificationStatus {
   PENDING
   VERIFIED
   REJECTED
+  CANCELLED
 }
 
 // MODELS
@@ -130,6 +131,8 @@ model Jagal {
   userId         String?    @unique
 
   sapi           Sapi[]
+  daging         Daging[]
+  transaksiPenyembelihan TransaksiPenyembelihan[]
   profiles       Profile[]
 }
 
@@ -145,6 +148,8 @@ model RPH {
   jumlahPenyelia         Int        @default(0)
   userId                 String?    @unique
 
+  daging                 Daging[]
+  transaksiPenyembelihan TransaksiPenyembelihan[]
   profiles               Profile[]
 }
 
@@ -211,7 +216,27 @@ model Daging {
   id                     String     @id @default(uuid())
   sapiId                 String     @unique
   sapi                   Sapi       @relation(fields: [sapiId], references: [id])
-  berat                  Float
+  jagalId                String     // Owner jagal dari sapi ini
+  jagal                  Jagal      @relation(fields: [jagalId], references: [id])
+  rphId                  String     // RPH yang melakukan penyembelihan
+  rph                    RPH        @relation(fields: [rphId], references: [id])
+  
+  // Detail paket daging
+  beratDaging            Float      // Berat daging (kg)
+  beratJeroan            Float      // Berat jeroan (kg) 
+  beratTulang            Float      // Berat tulang (kg)
+  totalBerat             Float      // Total berat paket
+  
+  // Relasi ke transaksi penyembelihan
+  transaksiPenyembelihanId String   @unique
+  transaksiPenyembelihan TransaksiPenyembelihan @relation(fields: [transaksiPenyembelihanId], references: [id])
+  
+  // Status verifikasi halal
+  statusHalal            VerificationStatus @default(PENDING)
+  kodeVerifikasiHalal    String?    // Kode verifikasi antara RPH dan Regulator
+  
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
   
   transaksiPenjualan     TransaksiPenjualan[]
   qr                     QR[]
@@ -220,17 +245,38 @@ model Daging {
 model TransaksiPenyembelihan {
   id              String     @id @default(uuid())
   
-  penyembelihType EntityType
-  penyembelihId   String
+  // Jagal yang mendaftarkan sapi untuk disembelih
+  jagalId         String
+  jagal           Jagal      @relation(fields: [jagalId], references: [id])
   
-  penerimaType    EntityType
-  penerimaId      String
+  // RPH tujuan penyembelihan
+  rphId           String
+  rph             RPH        @relation(fields: [rphId], references: [id])
   
   sapiId          String
-  sapi            Sapi      @relation(fields: [sapiId], references: [id])
+  sapi            Sapi       @relation(fields: [sapiId], references: [id])
   
-  timestamp       DateTime  @default(now())
+  // Status transaksi
+  status          String     @default("PENDING") // PENDING, PROCESSED, COMPLETED
+  
+  // Tanggal pendaftaran oleh Jagal
+  tanggalPendaftaran DateTime @default(now())
+  
+  // Tanggal pemrosesan oleh RPH (ketika RPH input hasil penyembelihan)
+  tanggalPemrosesan  DateTime?
+  
+  // Data hasil penyembelihan (diisi oleh RPH)
+  beratDaging     Float?
+  beratJeroan     Float?
+  beratTulang     Float?
+  totalBerat      Float?
+  
+  // IPFS dan tracking
+  timestamp       DateTime   @default(now())
   cid             String
+  
+  // Relasi ke daging (dibuat setelah pemrosesan)
+  daging          Daging?
 }
 
 model TransaksiPenjualan {
@@ -255,6 +301,11 @@ model TransaksiPenjualan {
   verifikasiRegulator Boolean @default(false)
   verificationStatus VerificationStatus @default(PENDING)
   verificationCode   String?
+  
+  // New fields for tracking verification status more clearly
+  verifiedByPenjual Boolean   @default(false)
+  verifiedByPembeli Boolean   @default(false)
+  notes             String?
 }
 
 model PengecekanSehat {
