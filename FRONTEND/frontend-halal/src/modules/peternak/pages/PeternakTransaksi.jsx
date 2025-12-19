@@ -55,9 +55,7 @@ const PeternakTransaksi = () => {
         setEntitiesLoading(true);
         setEntitiesError("");
         // Peternak hanya bisa menjual ke Pasar Hewan sesuai flow bisnis
-        const endpoints = [
-          { url: `${API_BASE}/pasarHewan`, type: "PASAR_HEWAN", nameKey: "nama" },
-        ];
+        const endpoints = [{ url: `${API_BASE}/pasarHewan`, type: "PASAR_HEWAN", nameKey: "nama" }];
 
         const results = await Promise.allSettled(
           endpoints.map(async (ep) => {
@@ -283,23 +281,23 @@ const PeternakTransaksi = () => {
   // Handle form submission for new transaction (wire to backend & capture CID)
   const handleNewTransaction = async (e) => {
     e.preventDefault();
-    
+
     // Validate form inputs
     if (!newTransaction.buyerId) {
-      alert('Silakan pilih pembeli (Pasar Hewan)');
+      alert("Silakan pilih pembeli (Pasar Hewan)");
       return;
     }
-    
+
     if (!newTransaction.cattleId) {
-      alert('Silakan pilih sapi yang akan dijual');
+      alert("Silakan pilih sapi yang akan dijual");
       return;
     }
-    
+
     if (!newTransaction.quantity || newTransaction.quantity < 1) {
-      alert('Jumlah sapi harus minimal 1');
+      alert("Jumlah sapi harus minimal 1");
       return;
     }
-    
+
     try {
       const API_BASE = "http://localhost:3000";
       const token = localStorage.getItem("token");
@@ -308,19 +306,19 @@ const PeternakTransaksi = () => {
 
       // Current user assumed to represent the entity for seller mapping
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      
+
       if (!user?.entityId && !user?.id) {
-        alert('User ID tidak ditemukan. Silakan login kembali.');
+        alert("User ID tidak ditemukan. Silakan login kembali.");
         return;
       }
 
       // Map buyer selection to proper buyer field in payload
       const buyer = buyers.find((b) => b.id === newTransaction.buyerId);
       if (!buyer) {
-        alert('Pembeli tidak valid');
+        alert("Pembeli tidak valid");
         return;
       }
-      
+
       const pembeliType = buyer?.type || newTransaction.buyerType;
       // Payload sesuai controller backend: gunakan penjualId dan pembeliId
       const payload = {
@@ -334,7 +332,7 @@ const PeternakTransaksi = () => {
         timestamp: newTransaction.date ? new Date(newTransaction.date).toISOString() : new Date().toISOString(),
       };
 
-      console.log('Sending transaction payload:', payload);
+      console.log("Sending transaction payload:", payload);
 
       const res = await fetch(`${API_BASE}/transaksiPenjualan`, {
         method: "POST",
@@ -342,15 +340,15 @@ const PeternakTransaksi = () => {
         body: JSON.stringify(payload),
       });
 
-      console.log('Response status:', res.status);
+      console.log("Response status:", res.status);
 
       let created = null;
       if (res.ok) {
         created = await res.json();
-        console.log('Transaction created successfully:', created);
+        console.log("Transaction created successfully:", created);
       } else {
         const err = await res.json().catch(() => ({}));
-        console.error('Backend error:', err);
+        console.error("Backend error:", err);
         alert(`Gagal membuat transaksi: ${err?.error || res.statusText}`);
         return; // Stop execution here if there's an error
       }
@@ -430,13 +428,9 @@ const PeternakTransaksi = () => {
 
       if (res.ok) {
         // Update local transactions list
-        const updated = transactions.map((t) => 
-          t.id === transactionId 
-            ? { ...t, verificationStatus: "CANCELLED", status: "cancelled" }
-            : t
-        );
+        const updated = transactions.map((t) => (t.id === transactionId ? { ...t, verificationStatus: "CANCELLED", status: "cancelled" } : t));
         setTransactions(updated);
-        
+
         alert("Transaksi berhasil dibatalkan");
       } else {
         throw new Error(result?.error || "Gagal membatalkan transaksi");
@@ -449,54 +443,60 @@ const PeternakTransaksi = () => {
 
   const handleConfirmSeller = async () => {
     if (!verifyingTx) return;
-    
+
     if (!verifyInputCode || verifyInputCode.length !== 6) {
-      setVerifyError('Masukkan kode OTP 6 digit yang valid');
+      setVerifyError("Masukkan kode OTP 6 digit yang valid");
       return;
     }
-    
+
     try {
       const API_BASE = "http://localhost:3000";
       const res = await fetch(`${API_BASE}/transaksiPenjualan/${verifyingTx.id}/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           verificationCode: verifyInputCode,
-          verifierRole: 'seller' // peternak sebagai penjual ke pasar hewan
+          verifierRole: "seller", // peternak sebagai penjual ke pasar hewan
         }),
       });
-      
+
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setVerifyError(json?.error || 'Kode OTP tidak valid atau sudah kedaluwarsa');
+        setVerifyError(json?.error || "Kode OTP tidak valid atau sudah kedaluwarsa");
         return;
       }
-      
+
       const json = await res.json();
-      setTransactions((prev) => prev.map((t) => (t.id === verifyingTx.id ? {
-        ...t,
-        verificationStatus: json?.data?.verificationStatus || 'PENDING',
-        status: json?.data?.verificationStatus === 'VERIFIED' ? 'verified' : 'pending',
-        cid: json?.cid || json?.data?.cid || t.cid,
-        verifikasiPenjual: json?.data?.verifikasiPenjual || true,
-      } : t)));
-      
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === verifyingTx.id
+            ? {
+                ...t,
+                verificationStatus: json?.data?.verificationStatus || "PENDING",
+                status: json?.data?.verificationStatus === "VERIFIED" ? "verified" : "pending",
+                cid: json?.cid || json?.data?.cid || t.cid,
+                verifikasiPenjual: json?.data?.verifikasiPenjual || true,
+              }
+            : t
+        )
+      );
+
       if (json?.isCompleted) {
-        setVerifySuccess('✅ Transaksi berhasil diverifikasi oleh kedua pihak dan tercatat di blockchain!');
+        setVerifySuccess("✅ Transaksi berhasil diverifikasi oleh kedua pihak dan tercatat di blockchain!");
       } else {
-        setVerifySuccess('✅ Verifikasi Peternak berhasil. Menunggu verifikasi dari Pasar Hewan.');
+        setVerifySuccess("✅ Verifikasi Peternak berhasil. Menunggu verifikasi dari Pasar Hewan.");
       }
-      setVerifyError('');
-      
+      setVerifyError("");
+
       setTimeout(() => {
         setShowVerifyModal(false);
         setVerifyingTx(null);
-        setVerifyInputCode('');
-        setVerifySuccess('');
+        setVerifyInputCode("");
+        setVerifySuccess("");
       }, 3000);
     } catch (err) {
       console.error(err);
-      setVerifyError('Terjadi kesalahan saat verifikasi. Silakan coba lagi.');
+      setVerifyError("Terjadi kesalahan saat verifikasi. Silakan coba lagi.");
     }
   };
 
@@ -569,16 +569,14 @@ const PeternakTransaksi = () => {
 
   // Utility function to check if transaction can be cancelled
   const canCancelTransaction = (transaction) => {
-    return transaction.verificationStatus === "PENDING" || 
-           transaction.verificationStatus === "pending" ||
-           transaction.status === "pending";
+    return transaction.verificationStatus === "PENDING" || transaction.verificationStatus === "pending" || transaction.status === "pending";
   };
 
   // Submit transfer: create transaction via backend API (same as sales transaction)
   const handleNewTransferSubmit = async (e) => {
     e.preventDefault();
     if (!newTransfer.cattleId || !newTransfer.recipient) {
-      alert('Silakan pilih sapi dan tujuan transfer');
+      alert("Silakan pilih sapi dan tujuan transfer");
       return;
     }
 
@@ -589,18 +587,18 @@ const PeternakTransaksi = () => {
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      
+
       if (!user?.entityId && !user?.id) {
-        alert('User ID tidak ditemukan. Silakan login kembali.');
+        alert("User ID tidak ditemukan. Silakan login kembali.");
         return;
       }
 
       // Parse recipient from dropdown
       const [recipientType, recipientIdRaw] = String(newTransfer.recipient).split(":");
       const recipientId = recipientIdRaw || "";
-      
+
       if (!recipientId) {
-        alert('Tujuan transfer tidak valid');
+        alert("Tujuan transfer tidak valid");
         return;
       }
 
@@ -616,7 +614,7 @@ const PeternakTransaksi = () => {
         timestamp: newTransfer.date ? new Date(newTransfer.date).toISOString() : new Date().toISOString(),
       };
 
-      console.log('Sending transfer payload:', payload);
+      console.log("Sending transfer payload:", payload);
 
       const res = await fetch(`${API_BASE}/transaksiPenjualan`, {
         method: "POST",
@@ -624,15 +622,15 @@ const PeternakTransaksi = () => {
         body: JSON.stringify(payload),
       });
 
-      console.log('Transfer response status:', res.status);
+      console.log("Transfer response status:", res.status);
 
       let created = null;
       if (res.ok) {
         created = await res.json();
-        console.log('Transfer created successfully:', created);
+        console.log("Transfer created successfully:", created);
       } else {
         const err = await res.json().catch(() => ({}));
-        console.error('Backend error:', err);
+        console.error("Backend error:", err);
         alert(`Gagal membuat transfer: ${err?.error || res.statusText}`);
         return;
       }
@@ -659,16 +657,15 @@ const PeternakTransaksi = () => {
 
       setTransferSuccess(true);
       setNewTransfer({ cattleId: "", recipient: "", date: "", notes: "" });
-      
+
       // Show success message and redirect to verification tab
       setTimeout(() => {
         setTransferSuccess(false);
         handleTabChange("verification");
       }, 1000);
-
     } catch (error) {
-      console.error('Error creating transfer:', error);
-      alert('Gagal membuat transfer. Silakan coba lagi.');
+      console.error("Error creating transfer:", error);
+      alert("Gagal membuat transfer. Silakan coba lagi.");
     }
   };
 
@@ -676,7 +673,7 @@ const PeternakTransaksi = () => {
   const openTransferVerification = (transactionId) => {
     const transaction = transactions.find((t) => t.id === transactionId);
     if (!transaction) return;
-    
+
     setVerifyingTransfer({
       id: transaction.id,
       verificationCode: transaction.verificationCode,
@@ -704,7 +701,7 @@ const PeternakTransaksi = () => {
 
   const handleConfirmTransferBuyer = async () => {
     if (!verifyingTransfer) return;
-    
+
     if (!transferVerifyInputCode.trim()) {
       setTransferVerifyError("Silakan masukkan kode verifikasi");
       return;
@@ -731,13 +728,9 @@ const PeternakTransaksi = () => {
         const result = await res.json();
         setTransferVerifySuccess("Verifikasi transfer berhasil!");
         setTransferVerifyError("");
-        
+
         // Update local transactions list
-        setTransactions(prev => prev.map(t => 
-          t.id === verifyingTransfer.id 
-            ? { ...t, verificationStatus: "VERIFIED", cid: result.data?.cid }
-            : t
-        ));
+        setTransactions((prev) => prev.map((t) => (t.id === verifyingTransfer.id ? { ...t, verificationStatus: "VERIFIED", cid: result.data?.cid } : t)));
 
         setTimeout(() => {
           setShowVerifyTransferModal(false);
@@ -750,7 +743,7 @@ const PeternakTransaksi = () => {
         setTransferVerifyError(err?.error || "Gagal memverifikasi transfer");
       }
     } catch (error) {
-      console.error('Error verifying transfer:', error);
+      console.error("Error verifying transfer:", error);
       setTransferVerifyError("Gagal memverifikasi transfer. Silakan coba lagi.");
     }
   };
@@ -772,14 +765,10 @@ const PeternakTransaksi = () => {
 
       if (res.ok) {
         // Update local transactions list
-        setTransactions(prev => prev.map(t => 
-          t.id === verifyingTransfer.id 
-            ? { ...t, verificationStatus: "REJECTED" }
-            : t
-        ));
+        setTransactions((prev) => prev.map((t) => (t.id === verifyingTransfer.id ? { ...t, verificationStatus: "REJECTED" } : t)));
       }
     } catch (error) {
-      console.error('Error rejecting transfer:', error);
+      console.error("Error rejecting transfer:", error);
     }
 
     setShowVerifyTransferModal(false);
@@ -916,11 +905,13 @@ const PeternakTransaksi = () => {
                         <option value="" disabled>
                           -- Pilih Pasar Hewan --
                         </option>
-                        {buyers.filter(buyer => buyer.type === 'PASAR_HEWAN').map((buyer) => (
-                          <option key={buyer.id} value={buyer.id}>
-                            {buyer.name}
-                          </option>
-                        ))}
+                        {buyers
+                          .filter((buyer) => buyer.type === "PASAR_HEWAN")
+                          .map((buyer) => (
+                            <option key={buyer.id} value={buyer.id}>
+                              {buyer.name}
+                            </option>
+                          ))}
                       </select>
                     </div>
                     <div>
@@ -1222,14 +1213,20 @@ const PeternakTransaksi = () => {
                   <i className="fas fa-handshake text-blue-500 mr-2"></i>
                   Verifikasi Transaksi
                 </h3>
-                <button 
-                  className="text-gray-400 hover:text-gray-600 transition-colors" 
-                  onClick={() => { setShowVerifyModal(false); setVerifyingTx(null); setVerifyError(''); setVerifySuccess(''); setVerifyInputCode(''); }}
+                <button
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  onClick={() => {
+                    setShowVerifyModal(false);
+                    setVerifyingTx(null);
+                    setVerifyError("");
+                    setVerifySuccess("");
+                    setVerifyInputCode("");
+                  }}
                 >
                   <i className="fas fa-times text-lg"></i>
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-4">
                 {/* Transaction Info */}
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2">
@@ -1257,15 +1254,13 @@ const PeternakTransaksi = () => {
                       <i className="fas fa-envelope text-blue-500 text-2xl mb-2"></i>
                       <h4 className="font-medium text-blue-800">Kode OTP Verifikasi</h4>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="bg-green-100 border border-green-300 rounded-lg p-3">
                         <i className="fas fa-check-circle text-green-600 mr-2"></i>
                         <span className="text-green-700 font-medium">Kode OTP telah dikirim ke email admin saat transaksi dibuat!</span>
                       </div>
-                      <p className="text-blue-700 text-sm">
-                        Silakan cek email Anda untuk mendapatkan kode verifikasi 6 digit yang sama dengan Pasar Hewan.
-                      </p>
+                      <p className="text-blue-700 text-sm">Silakan cek email Anda untuk mendapatkan kode verifikasi 6 digit yang sama dengan Pasar Hewan.</p>
                     </div>
                   </div>
                 </div>
@@ -1277,29 +1272,25 @@ const PeternakTransaksi = () => {
                       <i className="fas fa-key mr-1"></i>
                       Masukkan Kode OTP dari Email
                     </label>
-                    <input 
+                    <input
                       type="text"
                       maxLength="6"
-                      value={verifyInputCode} 
+                      value={verifyInputCode}
                       onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9]/g, '');
+                        const value = e.target.value.replace(/[^0-9]/g, "");
                         setVerifyInputCode(value);
-                        if (verifyError) setVerifyError('');
+                        if (verifyError) setVerifyError("");
                       }}
-                      className="w-full border border-gray-300 rounded-lg py-3 px-4 text-center text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      className="w-full border border-gray-300 rounded-lg py-3 px-4 text-center text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="000000"
                     />
-                    <p className="text-xs text-gray-500 mt-1 text-center">
-                      Masukkan 6 digit kode OTP yang sama dengan yang dimasukkan Pasar Hewan
-                    </p>
+                    <p className="text-xs text-gray-500 mt-1 text-center">Masukkan 6 digit kode OTP yang sama dengan yang dimasukkan Pasar Hewan</p>
                   </div>
-                  
+
                   {/* Input length indicator only */}
                   {verifyInputCode.length > 0 && verifyInputCode.length < 6 && (
                     <div className="text-center">
-                      <div className="text-gray-500 text-sm">
-                        {verifyInputCode.length}/6 digit
-                      </div>
+                      <div className="text-gray-500 text-sm">{verifyInputCode.length}/6 digit</div>
                     </div>
                   )}
                 </div>
@@ -1313,7 +1304,7 @@ const PeternakTransaksi = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {verifySuccess && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                     <div className="flex items-center text-green-700">
@@ -1323,36 +1314,29 @@ const PeternakTransaksi = () => {
                   </div>
                 )}
               </div>
-              
+
               {/* Action Buttons */}
               <div className="p-6 border-t bg-gray-50 flex items-center justify-between">
-                <button 
-                  className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
-                  onClick={handleRejectVerification}
-                >
+                <button className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors" onClick={handleRejectVerification}>
                   <i className="fas fa-times mr-2"></i>Tolak Transaksi
                 </button>
-                
+
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    onClick={() => { 
-                      setShowVerifyModal(false); 
-                      setVerifyingTx(null); 
-                      setVerifyError(''); 
-                      setVerifySuccess(''); 
-                      setVerifyInputCode(''); 
+                    onClick={() => {
+                      setShowVerifyModal(false);
+                      setVerifyingTx(null);
+                      setVerifyError("");
+                      setVerifySuccess("");
+                      setVerifyInputCode("");
                     }}
                   >
                     Batal
                   </button>
-                  
-                  <button 
-                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                      verifyInputCode.length === 6
-                        ? 'bg-green-600 hover:bg-green-700 text-white' 
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
+
+                  <button
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${verifyInputCode.length === 6 ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                     onClick={handleConfirmSeller}
                     disabled={verifyInputCode.length !== 6}
                   >
@@ -1523,24 +1507,20 @@ const PeternakTransaksi = () => {
                             <div className="flex items-center gap-3">
                               {isPendingStatus(item.status) && (
                                 <>
-                                  <button 
-                                    className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10" 
+                                  <button
+                                    className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10"
                                     onClick={() => {
-                                      const tx = transactions.find(t => t.id === item.raw.id);
+                                      const tx = transactions.find((t) => t.id === item.raw.id);
                                       setVerifyingTx(tx);
                                       setShowVerifyModal(true);
-                                      setVerifySuccess('');
-                                      setVerifyError('');
+                                      setVerifySuccess("");
+                                      setVerifyError("");
                                     }}
                                   >
                                     <i className="fas fa-key mr-1"></i>Masukkan OTP
                                   </button>
                                   {canCancelTransaction(item.raw) && (
-                                    <button
-                                      className="px-2 py-1 text-xs bg-red-100 text-red-700 border border-red-300 rounded hover:bg-red-200"
-                                      onClick={() => handleCancelTransaction(item.raw.id)}
-                                      title="Batalkan Transaksi"
-                                    >
+                                    <button className="px-2 py-1 text-xs bg-red-100 text-red-700 border border-red-300 rounded hover:bg-red-200" onClick={() => handleCancelTransaction(item.raw.id)} title="Batalkan Transaksi">
                                       Batal
                                     </button>
                                   )}

@@ -2,14 +2,25 @@ const express = require("express");
 const router = express.Router();
 const transaksiPenjualanController = require("../controllers/transaksiPenjualanController");
 
+// Main routes
 router.get("/", transaksiPenjualanController.getAllTransaksiPenjualan);
+
+// Testing endpoints for Postman
+router.get("/testing/stats", transaksiPenjualanController.getTransaksiStats); // Statistics endpoint
+router.get("/testing/seller/:penjualType", transaksiPenjualanController.getTransaksiByPenjualType); // Filter by seller type
+router.get("/testing/buyer/:pembeliType", transaksiPenjualanController.getTransaksiByPembeliType); // Filter by buyer type
+
+// Debug endpoints
 router.get("/debug/jagal-ids", transaksiPenjualanController.debugJagalIds); // Debug endpoint
+
+// Specific transaction by ID (must come after other GET routes to avoid conflicts)
 router.get("/:id", transaksiPenjualanController.getTransaksiPenjualanById);
 
-// New routes for incoming and outgoing transactions
+// Incoming and outgoing transactions
 router.get("/incoming/:entityType/:entityId", transaksiPenjualanController.getIncomingTransaksi);
 router.get("/outgoing/:entityType/:entityId", transaksiPenjualanController.getOutgoingTransaksi);
 
+// Transaction operations
 router.post("/", transaksiPenjualanController.createTransaksiPenjualan);
 router.post("/transfer", transaksiPenjualanController.transferSapi); // New transfer endpoint for Pasar Hewan to Jagal
 router.post("/:id/verify", transaksiPenjualanController.verifyTransaction); // New flexible verify endpoint

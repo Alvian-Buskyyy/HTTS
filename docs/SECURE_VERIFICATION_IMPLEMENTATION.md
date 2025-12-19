@@ -1,6 +1,7 @@
 # Secure Two-Party OTP Verification Implementation
 
 ## Overview
+
 Implemented a secure two-party OTP-based transaction verification system for cattle sales between sellers (peternak) and buyers (pasar hewan). The system ensures only the seller can initiate verification, both parties must enter the same OTP, and transactions are only marked as VERIFIED after both parties successfully verify.
 
 ## Implementation Details
@@ -8,6 +9,7 @@ Implemented a secure two-party OTP-based transaction verification system for cat
 ### Backend Changes
 
 #### 1. `requestVerification` Function (`transaksiPenjualanController.js`)
+
 - **Seller-Only Initiation**: Added validation to ensure only the seller can initiate OTP generation
 - **Body Parameters**: Now requires `requesterId` and `requesterType` to validate the requester
 - **Verification Reset**: Resets both `verifikasiPenjual` and `verifikasiPembeli` flags when new OTP is generated
@@ -16,13 +18,14 @@ Implemented a secure two-party OTP-based transaction verification system for cat
 ```javascript
 // Only seller can request/generate OTP
 if (requesterType !== existing.penjualType || requesterId !== existing.penjualId) {
-  return res.status(403).json({ 
-    error: "Hanya penjual yang dapat memulai proses verifikasi bersama" 
+  return res.status(403).json({
+    error: "Hanya penjual yang dapat memulai proses verifikasi bersama",
   });
 }
 ```
 
 #### 2. `verifyTransaction` Function (Enhanced)
+
 - **Seller-First Enforcement**: Buyers cannot verify before sellers
 - **Role-Based Verification**: Separate handling for `seller` and `buyer` verifier roles
 - **IPFS Error Handling**: Added fallback logic if IPFS upload fails
@@ -32,8 +35,8 @@ if (requesterType !== existing.penjualType || requesterId !== existing.penjualId
 if (verifierRole === "buyer") {
   // Enforce that seller must verify first
   if (!existing.verifikasiPenjual) {
-    return res.status(400).json({ 
-      error: "Penjual harus melakukan verifikasi terlebih dahulu sebelum pembeli dapat verifikasi" 
+    return res.status(400).json({
+      error: "Penjual harus melakukan verifikasi terlebih dahulu sebelum pembeli dapat verifikasi",
     });
   }
   // ... rest of buyer verification logic
@@ -43,38 +46,40 @@ if (verifierRole === "buyer") {
 ### Frontend Changes
 
 #### 1. Peternak (Seller) UI (`PeternakTransaksi.jsx`)
+
 - **Enhanced Request Function**: Now sends `requesterId` and `requesterType` when requesting verification
 - **Seller Profile Integration**: Retrieves seller ID from localStorage for authentication
 - **Clear Flow Messaging**: Updated UI messages to reflect seller-first verification
 
 ```javascript
 // Get peternak info from localStorage
-const peternakProfile = JSON.parse(localStorage.getItem('peternakProfile') || '{}');
+const peternakProfile = JSON.parse(localStorage.getItem("peternakProfile") || "{}");
 const requesterId = peternakProfile.id;
 
 // Send request with proper authentication
-const res = await fetch(`${API_BASE}/transaksiPenjualan/${transactionId}/requestVerification`, { 
+const res = await fetch(`${API_BASE}/transaksiPenjualan/${transactionId}/requestVerification`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     requesterId: requesterId,
-    requesterType: "PETERNAK"
-  })
+    requesterType: "PETERNAK",
+  }),
 });
 ```
 
 #### 2. Pasar Hewan (Buyer) UI (`PasarHewanTransfer.jsx`)
+
 - **Disabled OTP Generation**: Buyers can no longer initiate verification
 - **Status-Based Actions**: Different button states based on verification progress
-- **Smart Button Logic**: 
+- **Smart Button Logic**:
   - Shows "Menunggu Penjual" when seller hasn't verified
   - Shows "Verifikasi (Pembeli)" when seller has verified and buyer can proceed
   - Shows "Lihat Status" for general status checking
 
 ```javascript
 {transaction.verifikasiPenjual && !transaction.verifikasiPembeli ? (
-  <button 
-    className="px-3 py-1 rounded text-xs border border-green-400 text-green-600 bg-white hover:bg-green-50" 
+  <button
+    className="px-3 py-1 rounded text-xs border border-green-400 text-green-600 bg-white hover:bg-green-50"
     onClick={() => {
       setVerifyingTx(transaction);
       setShowVerifyModal(true);
@@ -84,8 +89,8 @@ const res = await fetch(`${API_BASE}/transaksiPenjualan/${transactionId}/request
     Verifikasi (Pembeli)
   </button>
 ) : !transaction.verifikasiPenjual ? (
-  <button 
-    className="px-3 py-1 rounded text-xs border border-gray-400 text-gray-500 bg-gray-100 cursor-not-allowed" 
+  <button
+    className="px-3 py-1 rounded text-xs border border-gray-400 text-gray-500 bg-gray-100 cursor-not-allowed"
     disabled
     title="Menunggu penjual memulai verifikasi"
   >
@@ -129,6 +134,7 @@ const res = await fetch(`${API_BASE}/transaksiPenjualan/${transactionId}/request
 ## Testing
 
 Use the provided test script (`test-verification-flow.sh`) to validate:
+
 1. Only seller can initiate verification
 2. Buyer cannot initiate verification
 3. Buyer cannot verify before seller
@@ -137,13 +143,16 @@ Use the provided test script (`test-verification-flow.sh`) to validate:
 ## Files Modified
 
 ### Backend
+
 - `BACKEND/controllers/transaksiPenjualanController.js`
 
-### Frontend  
+### Frontend
+
 - `FRONTEND/frontend-halal/src/modules/peternak/pages/PeternakTransaksi.jsx`
 - `FRONTEND/frontend-halal/src/modules/pasarHewan/pages/PasarHewanTransfer.jsx`
 
 ### Documentation
+
 - `docs/test-verification-flow.sh` (new test script)
 
 ## Next Steps (Optional)

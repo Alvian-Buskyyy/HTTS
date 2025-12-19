@@ -301,10 +301,6 @@ model TransaksiPenjualan {
   verifikasiRegulator Boolean @default(false)
   verificationStatus VerificationStatus @default(PENDING)
   verificationCode   String?
-  
-  // New fields for tracking verification status more clearly
-  verifiedByPenjual Boolean   @default(false)
-  verifiedByPembeli Boolean   @default(false)
   notes             String?
 }
 

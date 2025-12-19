@@ -1,13 +1,13 @@
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 // Konfigurasi transporter email
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
-      user: process.env.EMAIL_USER || 'halaltraceability@gmail.com', // Akan diset di .env
-      pass: process.env.EMAIL_PASS || 'qmrd cpeg frpu zusi'     // App password Gmail
-    }
+      user: process.env.EMAIL_USER || "halaltraceability@gmail.com", // Akan diset di .env
+      pass: process.env.EMAIL_PASS || "qmrd cpeg frpu zusi", // App password Gmail
+    },
   });
 };
 
@@ -17,12 +17,12 @@ const generateOTP = () => {
 };
 
 // Kirim OTP ke email
-const sendOTPEmail = async (recipientEmail, otp, transactionId, transactionType = 'Transaksi Penjualan') => {
+const sendOTPEmail = async (recipientEmail, otp, transactionId, transactionType = "Transaksi Penjualan") => {
   try {
     const transporter = createTransporter();
-    
+
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'noreply@halal-traceability.com',
+      from: process.env.EMAIL_USER || "noreply@halal-traceability.com",
       to: recipientEmail,
       subject: `[HALAL TRACEABILITY] Kode OTP Verifikasi Transaksi`,
       html: `
@@ -71,14 +71,14 @@ const sendOTPEmail = async (recipientEmail, otp, transactionId, transactionType 
             </div>
           </div>
         </div>
-      `
+      `,
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log('OTP email sent successfully:', result.messageId);
+    console.log("OTP email sent successfully:", result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error('Error sending OTP email:', error);
+    console.error("Error sending OTP email:", error);
     return { success: false, error: error.message };
   }
 };
@@ -87,9 +87,9 @@ const sendOTPEmail = async (recipientEmail, otp, transactionId, transactionType 
 const sendTransactionSuccessEmail = async (recipientEmail, transactionId, details = {}) => {
   try {
     const transporter = createTransporter();
-    
+
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'noreply@halal-traceability.com',
+      from: process.env.EMAIL_USER || "noreply@halal-traceability.com",
       to: recipientEmail,
       subject: `[HALAL TRACEABILITY] Transaksi Berhasil Diverifikasi`,
       html: `
@@ -105,31 +105,35 @@ const sendTransactionSuccessEmail = async (recipientEmail, transactionId, detail
               <p style="margin: 0; color: #047857; font-family: monospace;">${transactionId}</p>
             </div>
             
-            ${details.cid ? `
+            ${
+              details.cid
+                ? `
             <div style="background-color: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; color: #1e40af;">
                 <strong>🔗 Blockchain CID:</strong><br>
                 <span style="font-family: monospace; font-size: 12px; word-break: break-all;">${details.cid}</span>
               </p>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
             
             <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
               <p style="color: #9ca3af; font-size: 12px; margin: 0;">
                 Transaksi telah tercatat secara permanen di blockchain<br>
-                Sistem Halal Traceability - ${new Date().toLocaleString('id-ID')}
+                Sistem Halal Traceability - ${new Date().toLocaleString("id-ID")}
               </p>
             </div>
           </div>
         </div>
-      `
+      `,
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log('Success notification email sent:', result.messageId);
+    console.log("Success notification email sent:", result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error('Error sending success email:', error);
+    console.error("Error sending success email:", error);
     return { success: false, error: error.message };
   }
 };
@@ -138,9 +142,9 @@ const sendTransactionSuccessEmail = async (recipientEmail, transactionId, detail
 const sendTransactionCancelEmail = async (recipientEmail, transactionId, details = {}) => {
   try {
     const transporter = createTransporter();
-    
+
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'noreply@halal-traceability.com',
+      from: process.env.EMAIL_USER || "noreply@halal-traceability.com",
       to: recipientEmail,
       subject: `[HALAL TRACEABILITY] Transaksi Dibatalkan`,
       html: `
@@ -156,18 +160,22 @@ const sendTransactionCancelEmail = async (recipientEmail, transactionId, details
               <p style="margin: 0; color: #7f1d1d; font-family: monospace;">${transactionId}</p>
             </div>
             
-            ${details.reason ? `
+            ${
+              details.reason
+                ? `
             <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; color: #92400e;">
                 <strong>Alasan:</strong> ${details.reason}
               </p>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
             
             <div style="background-color: #f3f4f6; border-radius: 8px; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; color: #374151;">
                 <strong>ℹ️ Informasi:</strong><br>
-                Transaksi dari ${details.penjualType || 'Penjual'} ke ${details.pembeliType || 'Pembeli'} telah dibatalkan.<br>
+                Transaksi dari ${details.penjualType || "Penjual"} ke ${details.pembeliType || "Pembeli"} telah dibatalkan.<br>
                 Status kepemilikan sapi tetap pada pemilik semula.
               </p>
             </div>
@@ -175,19 +183,19 @@ const sendTransactionCancelEmail = async (recipientEmail, transactionId, details
             <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
               <p style="color: #9ca3af; font-size: 12px; margin: 0;">
                 Notifikasi pembatalan transaksi<br>
-                Sistem Halal Traceability - ${new Date().toLocaleString('id-ID')}
+                Sistem Halal Traceability - ${new Date().toLocaleString("id-ID")}
               </p>
             </div>
           </div>
         </div>
-      `
+      `,
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log('Cancellation notification email sent:', result.messageId);
+    console.log("Cancellation notification email sent:", result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error('Error sending cancellation email:', error);
+    console.error("Error sending cancellation email:", error);
     return { success: false, error: error.message };
   }
 };
@@ -196,5 +204,5 @@ module.exports = {
   generateOTP,
   sendOTPEmail,
   sendTransactionSuccessEmail,
-  sendTransactionCancelEmail
+  sendTransactionCancelEmail,
 };

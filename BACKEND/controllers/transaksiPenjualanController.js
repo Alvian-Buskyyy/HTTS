@@ -5,8 +5,359 @@ const { generateOTP, sendOTPEmail, sendTransactionSuccessEmail, sendTransactionC
 
 exports.getAllTransaksiPenjualan = async (req, res) => {
   try {
-    const transaksiPenjualan = await prisma.transaksiPenjualan.findMany();
-    res.status(200).json(transaksiPenjualan);
+    const transaksiPenjualan = await prisma.transaksiPenjualan.findMany({
+      include: {
+        sapi: {
+          include: {
+            peternak: true,
+            pasarHewan: true,
+            jagal: true,
+          },
+        },
+        daging: {
+          include: {
+            sapi: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    });
+    res.status(200).json({
+      message: "All transactions retrieved successfully",
+      count: transaksiPenjualan.length,
+      data: transaksiPenjualan
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Testing endpoint - Get transactions by seller type
+exports.getTransaksiByPenjualType = async (req, res) => {
+  const { penjualType } = req.params;
+
+  try {
+    const validSellerTypes = ["PETERNAK", "PASAR_HEWAN", "JAGAL", "RPH", "DISTRIBUTOR", "HOREKA"];
+    
+    if (!validSellerTypes.includes(penjualType)) {
+      return res.status(400).json({ 
+        error: `Invalid penjualType. Must be one of: ${validSellerTypes.join(', ')}` 
+      });
+    }
+
+    const transaksiPenjualan = await prisma.transaksiPenjualan.findMany({
+      where: {
+        penjualType: penjualType
+      },
+      include: {
+        sapi: {
+          include: {
+            peternak: true,
+            pasarHewan: true,
+            jagal: true,
+          },
+        },
+        daging: {
+          include: {
+            sapi: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    });
+
+    // Enrich data with seller and buyer information
+    const enrichedTransaksi = await Promise.all(
+      transaksiPenjualan.map(async (transaksi) => {
+        let sellerInfo = null;
+        let buyerInfo = null;
+
+        // Get seller information
+        switch (transaksi.penjualType) {
+          case "PETERNAK":
+            sellerInfo = await prisma.peternak.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "PASAR_HEWAN":
+            sellerInfo = await prisma.pasarHewan.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "JAGAL":
+            sellerInfo = await prisma.jagal.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "RPH":
+            sellerInfo = await prisma.rPH.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "DISTRIBUTOR":
+            sellerInfo = await prisma.distributor.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "HOREKA":
+            sellerInfo = await prisma.horeka.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+        }
+
+        // Get buyer information
+        switch (transaksi.pembeliType) {
+          case "PETERNAK":
+            buyerInfo = await prisma.peternak.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "PASAR_HEWAN":
+            buyerInfo = await prisma.pasarHewan.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "JAGAL":
+            buyerInfo = await prisma.jagal.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "RPH":
+            buyerInfo = await prisma.rPH.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "DISTRIBUTOR":
+            buyerInfo = await prisma.distributor.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "HOREKA":
+            buyerInfo = await prisma.horeka.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+        }
+
+        return {
+          ...transaksi,
+          sellerInfo,
+          buyerInfo,
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: `Transactions for seller type ${penjualType} retrieved successfully`,
+      penjualType,
+      count: enrichedTransaksi.length,
+      data: enrichedTransaksi
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Testing endpoint - Get transactions by buyer type  
+exports.getTransaksiByPembeliType = async (req, res) => {
+  const { pembeliType } = req.params;
+
+  try {
+    const validBuyerTypes = ["PETERNAK", "PASAR_HEWAN", "JAGAL", "RPH", "DISTRIBUTOR", "HOREKA"];
+    
+    if (!validBuyerTypes.includes(pembeliType)) {
+      return res.status(400).json({ 
+        error: `Invalid pembeliType. Must be one of: ${validBuyerTypes.join(', ')}` 
+      });
+    }
+
+    const transaksiPenjualan = await prisma.transaksiPenjualan.findMany({
+      where: {
+        pembeliType: pembeliType
+      },
+      include: {
+        sapi: {
+          include: {
+            peternak: true,
+            pasarHewan: true,
+            jagal: true,
+          },
+        },
+        daging: {
+          include: {
+            sapi: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+    });
+
+    // Enrich data with seller and buyer information
+    const enrichedTransaksi = await Promise.all(
+      transaksiPenjualan.map(async (transaksi) => {
+        let sellerInfo = null;
+        let buyerInfo = null;
+
+        // Get seller information
+        switch (transaksi.penjualType) {
+          case "PETERNAK":
+            sellerInfo = await prisma.peternak.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "PASAR_HEWAN":
+            sellerInfo = await prisma.pasarHewan.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "JAGAL":
+            sellerInfo = await prisma.jagal.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "RPH":
+            sellerInfo = await prisma.rPH.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "DISTRIBUTOR":
+            sellerInfo = await prisma.distributor.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+          case "HOREKA":
+            sellerInfo = await prisma.horeka.findUnique({
+              where: { id: transaksi.penjualId },
+            });
+            break;
+        }
+
+        // Get buyer information
+        switch (transaksi.pembeliType) {
+          case "PETERNAK":
+            buyerInfo = await prisma.peternak.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "PASAR_HEWAN":
+            buyerInfo = await prisma.pasarHewan.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "JAGAL":
+            buyerInfo = await prisma.jagal.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "RPH":
+            buyerInfo = await prisma.rPH.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "DISTRIBUTOR":
+            buyerInfo = await prisma.distributor.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+          case "HOREKA":
+            buyerInfo = await prisma.horeka.findUnique({
+              where: { id: transaksi.pembeliId },
+            });
+            break;
+        }
+
+        return {
+          ...transaksi,
+          sellerInfo,
+          buyerInfo,
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: `Transactions for buyer type ${pembeliType} retrieved successfully`,
+      pembeliType,
+      count: enrichedTransaksi.length,
+      data: enrichedTransaksi
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Testing endpoint - Get transaction statistics
+exports.getTransaksiStats = async (req, res) => {
+  try {
+    // Get total counts by status
+    const totalTransactions = await prisma.transaksiPenjualan.count();
+    const pendingCount = await prisma.transaksiPenjualan.count({
+      where: { verificationStatus: "PENDING" }
+    });
+    const verifiedCount = await prisma.transaksiPenjualan.count({
+      where: { verificationStatus: "VERIFIED" }
+    });
+    const rejectedCount = await prisma.transaksiPenjualan.count({
+      where: { verificationStatus: "REJECTED" }
+    });
+    const cancelledCount = await prisma.transaksiPenjualan.count({
+      where: { verificationStatus: "CANCELLED" }
+    });
+
+    // Get counts by seller type
+    const sellerTypeStats = await prisma.transaksiPenjualan.groupBy({
+      by: ['penjualType'],
+      _count: {
+        penjualType: true
+      }
+    });
+
+    // Get counts by buyer type
+    const buyerTypeStats = await prisma.transaksiPenjualan.groupBy({
+      by: ['pembeliType'],
+      _count: {
+        pembeliType: true
+      }
+    });
+
+    // Get counts by item type
+    const itemTypeStats = await prisma.transaksiPenjualan.groupBy({
+      by: ['type'],
+      _count: {
+        type: true
+      }
+    });
+
+    res.status(200).json({
+      message: "Transaction statistics retrieved successfully",
+      data: {
+        totals: {
+          total: totalTransactions,
+          pending: pendingCount,
+          verified: verifiedCount,
+          rejected: rejectedCount,
+          cancelled: cancelledCount
+        },
+        bySellerType: sellerTypeStats.reduce((acc, item) => {
+          acc[item.penjualType] = item._count.penjualType;
+          return acc;
+        }, {}),
+        byBuyerType: buyerTypeStats.reduce((acc, item) => {
+          acc[item.pembeliType] = item._count.pembeliType;
+          return acc;
+        }, {}),
+        byItemType: itemTypeStats.reduce((acc, item) => {
+          acc[item.type || 'unknown'] = item._count.type;
+          return acc;
+        }, {})
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -214,18 +565,13 @@ exports.createTransaksiPenjualan = async (req, res) => {
     // Send OTP email notification to taktujik@gmail.com (temporary email for testing)
     // TODO: In the future, this should be sent to both seller and buyer emails
     const recipientEmail = "taktujik@gmail.com";
-    const emailResult = await sendOTPEmail(
-      recipientEmail,
-      verificationCode,
-      newTransaksiPenjualan.id,
-      "Transaksi Penjualan"
-    );
+    const emailResult = await sendOTPEmail(recipientEmail, verificationCode, newTransaksiPenjualan.id, "Transaksi Penjualan");
 
     if (!emailResult.success) {
       console.error("Failed to send OTP email:", emailResult.error);
       // Still return success for transaction creation, but log the email error
     }
-   
+
     res.status(201).json({
       message: "Transaksi penjualan dibuat. OTP telah dikirim ke email untuk verifikasi.",
       data: newTransaksiPenjualan,
@@ -240,7 +586,7 @@ exports.createTransaksiPenjualan = async (req, res) => {
 exports.requestVerification = async (req, res) => {
   const { id } = req.params;
   const { requesterId, requesterType } = req.body;
-  
+
   try {
     const existing = await prisma.transaksiPenjualan.findUnique({ where: { id } });
     if (!existing) {
@@ -249,8 +595,8 @@ exports.requestVerification = async (req, res) => {
 
     // Only seller can request/generate OTP
     if (requesterType !== existing.penjualType || requesterId !== existing.penjualId) {
-      return res.status(403).json({ 
-        error: "Hanya penjual yang dapat memulai proses verifikasi bersama" 
+      return res.status(403).json({
+        error: "Hanya penjual yang dapat memulai proses verifikasi bersama",
       });
     }
 
@@ -275,22 +621,17 @@ exports.requestVerification = async (req, res) => {
 
     // Send OTP email to both parties (currently using test email)
     const recipientEmail = "taktujik@gmail.com";
-    const emailResult = await sendOTPEmail(
-      recipientEmail,
-      verificationCode,
-      id,
-      "Verifikasi Bersama Transaksi"
-    );
+    const emailResult = await sendOTPEmail(recipientEmail, verificationCode, id, "Verifikasi Bersama Transaksi");
 
     if (!emailResult.success) {
       console.error("Failed to send OTP email:", emailResult.error);
     }
 
-    res.status(200).json({ 
-      message: "Kode verifikasi dibuat. OTP telah dikirim ke kedua pihak untuk verifikasi bersama.", 
+    res.status(200).json({
+      message: "Kode verifikasi dibuat. OTP telah dikirim ke kedua pihak untuk verifikasi bersama.",
       data: updated,
       emailSent: emailResult.success,
-      instruction: "Penjual harus verifikasi terlebih dahulu, kemudian pembeli."
+      instruction: "Penjual harus verifikasi terlebih dahulu, kemudian pembeli.",
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -441,7 +782,7 @@ exports.rejectVerification = async (req, res) => {
 exports.cancelTransaksi = async (req, res) => {
   const { id } = req.params;
   const { reason = "Dibatalkan oleh pengguna" } = req.body;
-  
+
   try {
     // Check if the transaction exists
     const existing = await prisma.transaksiPenjualan.findUnique({
@@ -454,14 +795,14 @@ exports.cancelTransaksi = async (req, res) => {
 
     // Only allow cancellation for pending transactions
     if (existing.verificationStatus === "VERIFIED") {
-      return res.status(400).json({ 
-        error: "Transaksi yang sudah diverifikasi tidak dapat dibatalkan" 
+      return res.status(400).json({
+        error: "Transaksi yang sudah diverifikasi tidak dapat dibatalkan",
       });
     }
 
     if (existing.verificationStatus === "REJECTED") {
-      return res.status(400).json({ 
-        error: "Transaksi sudah ditolak sebelumnya" 
+      return res.status(400).json({
+        error: "Transaksi sudah ditolak sebelumnya",
       });
     }
 
@@ -479,12 +820,8 @@ exports.cancelTransaksi = async (req, res) => {
     // Send cancellation notification email
     try {
       const recipientEmail = "taktujik@gmail.com"; // TODO: get from user data
-      const emailResult = await sendTransactionCancelEmail(
-        recipientEmail,
-        id,
-        { reason, penjualType: existing.penjualType, pembeliType: existing.pembeliType }
-      );
-      
+      const emailResult = await sendTransactionCancelEmail(recipientEmail, id, { reason, penjualType: existing.penjualType, pembeliType: existing.pembeliType });
+
       if (!emailResult.success) {
         console.error("Failed to send cancellation email:", emailResult.error);
       }
@@ -492,9 +829,9 @@ exports.cancelTransaksi = async (req, res) => {
       console.error("Error sending cancellation email:", emailError);
     }
 
-    res.status(200).json({ 
-      message: "Transaksi berhasil dibatalkan", 
-      data: cancelled 
+    res.status(200).json({
+      message: "Transaksi berhasil dibatalkan",
+      data: cancelled,
     });
   } catch (error) {
     console.error("Error cancelling transaction:", error);
@@ -800,8 +1137,8 @@ exports.verifyTransaction = async (req, res) => {
     } else if (verifierRole === "buyer") {
       // Enforce that seller must verify first
       if (!existing.verifikasiPenjual) {
-        return res.status(400).json({ 
-          error: "Penjual harus melakukan verifikasi terlebih dahulu sebelum pembeli dapat verifikasi" 
+        return res.status(400).json({
+          error: "Penjual harus melakukan verifikasi terlebih dahulu sebelum pembeli dapat verifikasi",
         });
       }
       updateData.verifikasiPembeli = true;
@@ -926,24 +1263,20 @@ exports.verifyTransaction = async (req, res) => {
     // Send success email notification if transaction is fully verified
     if (updateData.verificationStatus === "VERIFIED" && updateData.cid) {
       const recipientEmail = "taktujik@gmail.com";
-      const successEmailResult = await sendTransactionSuccessEmail(
-        recipientEmail,
-        id,
-        { 
-          cid: updateData.cid,
-          penjualType: existing.penjualType,
-          pembeliType: existing.pembeliType 
-        }
-      );
+      const successEmailResult = await sendTransactionSuccessEmail(recipientEmail, id, {
+        cid: updateData.cid,
+        penjualType: existing.penjualType,
+        pembeliType: existing.pembeliType,
+      });
 
       if (!successEmailResult.success) {
         console.error("Failed to send success email:", successEmailResult.error);
       }
     }
 
-    const responseMessage = shouldCompleteTransaction ? 
-      'Transaksi berhasil diverifikasi oleh kedua pihak dan tercatat di blockchain!' :
-      `Verifikasi ${verifierRole === 'seller' ? 'penjual' : 'pembeli'} berhasil. Menunggu verifikasi pihak lain.`;
+    const responseMessage = shouldCompleteTransaction
+      ? "Transaksi berhasil diverifikasi oleh kedua pihak dan tercatat di blockchain!"
+      : `Verifikasi ${verifierRole === "seller" ? "penjual" : "pembeli"} berhasil. Menunggu verifikasi pihak lain.`;
 
     res.status(200).json({
       message: responseMessage,
@@ -1103,13 +1436,13 @@ exports.transferSapi = async (req, res) => {
     const jagal = await prisma.jagal.findUnique({ where: { id: jagalId } });
     console.log("Transfer Debug - Jagal found:", !!jagal, jagal);
     if (!jagal) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: `Jagal dengan ID ${jagalId} tidak ditemukan dalam sistem`,
         debug: {
           requestedId: jagalId,
           requestedIdType: typeof jagalId,
-          availableJagals: allJagals
-        }
+          availableJagals: allJagals,
+        },
       });
     }
 
@@ -1131,38 +1464,34 @@ exports.transferSapi = async (req, res) => {
     // Generate verification code using email service
     const verificationCode = generateOTP();
 
-    // Create transfer record as a transaction (using SAPI type for compatibility with existing flow)
+    // Create transfer record as a transaction (using exact same pattern as createTransaksiPenjualan)
     const newTransfer = await prisma.transaksiPenjualan.create({
       data: {
         penjualType: "PASAR_HEWAN",
         penjualId: pasarHewanId,
         pembeliType: "JAGAL",
         pembeliId: jagalId,
-        sapiId,
-        jumlahQty,
-        type: "SAPI", // Use SAPI type to be compatible with existing validation
-        notes: notes || '',
-        verifikasiPenjual: true, // Pasar Hewan auto-confirms since they initiated the transfer
+        sapiId: sapiId,
+        dagingId: null,
+        jumlahQty: jumlahQty,
+        type: "SAPI",
+        verifikasiPenjual: true,
         verifikasiPembeli: false,
         verificationStatus: "PENDING",
-        verificationCode,
+        verificationCode: verificationCode,
+        notes: notes || null,
       },
     });
 
     // Send OTP email notification to taktujik@gmail.com (temporary email for testing)
     const recipientEmail = "taktujik@gmail.com";
-    const emailResult = await sendOTPEmail(
-      recipientEmail,
-      verificationCode,
-      newTransfer.id,
-      "Transfer Sapi"
-    );
+    const emailResult = await sendOTPEmail(recipientEmail, verificationCode, newTransfer.id, "Transfer Sapi");
 
     if (!emailResult.success) {
       console.error("Failed to send OTP email:", emailResult.error);
       // Still return success for transfer creation, but log the email error
     }
-   
+
     res.status(201).json({
       message: "Transfer sapi ke Jagal berhasil dibuat. OTP telah dikirim ke email untuk verifikasi.",
       data: newTransfer,
@@ -1183,11 +1512,11 @@ exports.debugJagalIds = async (req, res) => {
         userId: true,
       },
     });
-    
+
     res.status(200).json({
       message: "Debug: All Jagal IDs",
       data: jagals,
-      count: jagals.length
+      count: jagals.length,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

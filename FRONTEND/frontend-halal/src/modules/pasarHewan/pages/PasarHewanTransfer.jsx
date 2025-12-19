@@ -128,7 +128,7 @@ const PasarHewanTransfer = () => {
                 // For PETERNAK - might need userId, but for Jagal transfer use row.id
                 id: row.id || row.userId || row.kode || row.uuid || "",
                 name: row.nama || row.namaUsaha || row.instansi || row.username || (row.id || row.userId ? `ID ${row.id || row.userId}` : s.type),
-                originalData: row // Keep original data for debugging
+                originalData: row, // Keep original data for debugging
               }))
             )
           )
@@ -551,7 +551,7 @@ const PasarHewanTransfer = () => {
         selectedCattle: selectedCattle,
         recipientId: newTransfer.recipientId,
         pasarHewanId: pasarHewanId,
-        cattleId: newTransfer.cattleId
+        cattleId: newTransfer.cattleId,
       });
 
       // Submit transfer request to backend
@@ -614,8 +614,8 @@ const PasarHewanTransfer = () => {
       });
     } catch (error) {
       console.error("Error creating transfer:", error);
-      // You might want to add an error state and show error message to user
-      alert("Gagal membuat transfer: " + error.message);
+      // Changed from alert to console.log
+      console.log("Gagal membuat transfer:", error.message);
     } finally {
       setTransferLoading(false);
     }

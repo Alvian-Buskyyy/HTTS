@@ -4,6 +4,20 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import JagalSidebar from '../components/JagalSidebar';
 
 const JagalTransaksi = () => {
+  // Debug informasi environment
+  React.useEffect(() => {
+    console.log('🌍 [JAGAL ENV] Environment debugging info:', {
+      currentUrl: window.location.href,
+      localStorage: {
+        token: localStorage.getItem('token') ? 'EXISTS' : 'NOT_FOUND',
+        user: JSON.parse(localStorage.getItem('user') || '{}'),
+      },
+      apiBase: 'http://localhost:3000',
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    });
+  }, []);
+
   const location = useLocation();
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -36,6 +50,20 @@ const JagalTransaksi = () => {
   });
 
   const [transactions, setTransactions] = useState([]);
+  const [incomingTransactions, setIncomingTransactions] = useState([]); // Transaksi masuk dari pasar hewan
+
+  // Debug log untuk incoming transactions
+  React.useEffect(() => {
+    console.log('🔄 [JAGAL STATE] Incoming transactions state changed:', {
+      count: incomingTransactions.length,
+      transactions: incomingTransactions,
+      pending: incomingTransactions.filter(t => t.status === 'pending').length,
+      verified: incomingTransactions.filter(t => t.status === 'verified').length,
+      rejected: incomingTransactions.filter(t => t.status === 'rejected').length,
+      canAccept: incomingTransactions.filter(t => t.canAccept).length,
+      timestamp: new Date().toISOString()
+    });
+  }, [incomingTransactions]);
 
   const [availableCattle, setAvailableCattle] = useState([]);
 
@@ -57,8 +85,9 @@ const JagalTransaksi = () => {
         if (!txRes.ok) throw new Error(txData?.error || 'Gagal memuat transaksi');
         if (!sapiRes.ok) throw new Error(sapiData?.error || 'Gagal memuat sapi');
 
+        const jagalEntityId = user?.entityId || user?.id;
         const ownedIds = (Array.isArray(txData) ? txData : [])
-          .filter(tp => tp.pembeliType === 'JAGAL' && String(tp.pembeliId || tp.jagalPembeliId) === String(user?.id) && tp.verificationStatus === 'VERIFIED')
+          .filter(tp => tp.pembeliType === 'JAGAL' && String(tp.pembeliId || tp.jagalPembeliId) === String(jagalEntityId) && tp.verificationStatus === 'VERIFIED')
           .map(tp => tp.sapiId)
           .filter(Boolean);
 
@@ -214,8 +243,9 @@ const JagalTransaksi = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || 'Gagal memuat transaksi penjualan');
 
+        const jagalEntityId = user?.entityId || user?.id;
         const filtered = (Array.isArray(data) ? data : [])
-          .filter(tp => tp.penjualType === 'JAGAL' && String(tp.penjualId) === String(user?.id));
+          .filter(tp => tp.penjualType === 'JAGAL' && String(tp.penjualId || tp.jagalPenjualId) === String(jagalEntityId));
 
         const mapped = filtered.map(tp => ({
           id: tp.id,
@@ -250,6 +280,179 @@ const JagalTransaksi = () => {
     fetchTransaksiPenjualan();
   }, [buyers]);
 
+  // Muat transaksi masuk dari pasar hewan (Jagal sebagai pembeli)
+  useEffect(() => {
+    const API_BASE = 'http://localhost:3000';
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    console.log('🔍 [JAGAL INCOMING] Starting to fetch incoming transactions...');
+    console.log('📋 [JAGAL INCOMING] User data:', user);
+    console.log('🆔 [JAGAL INCOMING] User ID:', user?.id);
+    console.log('🏢 [JAGAL INCOMING] Entity ID:', user?.entityId);
+    console.log('📊 [JAGAL INCOMING] Entity Data:', user?.entityData);
+    console.log('🔑 [JAGAL INCOMING] Auth headers:', headers);
+
+    const fetchIncomingTransaksi = async () => {
+      try {
+        const jagalEntityId = user?.entityId || user?.id;
+        const endpoint = `${API_BASE}/transaksiPenjualan/incoming/JAGAL/${jagalEntityId}`;
+        console.log('🌐 [JAGAL INCOMING] Using entity ID:', jagalEntityId);
+        console.log('🌐 [JAGAL INCOMING] Fetching from endpoint:', endpoint);
+        
+        const res = await fetch(endpoint, { headers });
+        console.log('📡 [JAGAL INCOMING] Response status:', res.status, res.statusText);
+        
+        const response = await res.json();
+        console.log('📦 [JAGAL INCOMING] Raw response from backend:', response);
+        
+        if (!res.ok) {
+          console.error('❌ [JAGAL INCOMING] Request failed:', response);
+          throw new Error(response?.error || 'Gagal memuat transaksi masuk');
+        }
+
+        const incomingData = response?.data || [];
+        console.log('📊 [JAGAL INCOMING] Incoming data count:', incomingData.length);
+        console.log('📋 [JAGAL INCOMING] Raw incoming data:', incomingData);
+
+        const mapped = incomingData.map((tp, index) => {
+          console.log(`🔄 [JAGAL INCOMING] Processing transaction ${index + 1}:`, tp);
+          
+          const mappedTransaction = {
+            id: tp.id,
+            date: tp.timestamp ? new Date(tp.timestamp).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            sellerId: tp.penjualId,
+            sellerName: tp.sellerInfo?.nama || tp.penjualId || '-',
+            sellerType: tp.penjualType,
+            cattleId: tp.sapiId || tp.dagingId || '-',
+            quantity: tp.jumlahQty || 1,
+            status: tp.verificationStatus === 'VERIFIED' ? 'verified' : tp.verificationStatus === 'REJECTED' ? 'rejected' : 'pending',
+            verificationStatus: tp.verificationStatus,
+            blockchainHash: '',
+            cid: tp.cid,
+            verificationCode: tp.verificationCode,
+            canAccept: tp.verificationStatus === 'PENDING' || tp.verificationStatus === 'WAITING_BUYER',
+            rawData: tp
+          };
+          
+          console.log(`✅ [JAGAL INCOMING] Mapped transaction ${index + 1}:`, mappedTransaction);
+          return mappedTransaction;
+        });
+
+        console.log('📈 [JAGAL INCOMING] Final mapped transactions:', mapped);
+        console.log('📊 [JAGAL INCOMING] Transactions by status:', {
+          total: mapped.length,
+          pending: mapped.filter(t => t.status === 'pending').length,
+          verified: mapped.filter(t => t.status === 'verified').length,
+          rejected: mapped.filter(t => t.status === 'rejected').length,
+          canAccept: mapped.filter(t => t.canAccept).length
+        });
+
+        setIncomingTransactions(mapped);
+        console.log('✅ [JAGAL INCOMING] State updated successfully');
+      } catch (err) {
+        console.error('❌ [JAGAL INCOMING] Error fetching incoming transactions:', err);
+        console.error('🔍 [JAGAL INCOMING] Error details:', {
+          message: err.message,
+          stack: err.stack,
+          user: user,
+          endpoint: `${API_BASE}/transaksiPenjualan/incoming/JAGAL/${user?.id}`
+        });
+      }
+    };
+
+    if (user?.id) {
+      console.log('🚀 [JAGAL INCOMING] Starting initial fetch and setting up auto-refresh...');
+      fetchIncomingTransaksi();
+      // Set interval untuk refresh otomatis setiap 30 detik
+      const interval = setInterval(() => {
+        console.log('🔄 [JAGAL INCOMING] Auto-refresh triggered...');
+        fetchIncomingTransaksi();
+      }, 30000);
+      return () => {
+        console.log('🛑 [JAGAL INCOMING] Cleanup: clearing auto-refresh interval');
+        clearInterval(interval);
+      };
+    } else {
+      console.warn('⚠️ [JAGAL INCOMING] No user ID found, skipping fetch');
+    }
+  }, []);
+
+  // Fungsi helper untuk refresh transaksi masuk
+  const refreshIncomingTransactions = async () => {
+    const API_BASE = 'http://localhost:3000';
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    console.log('🔄 [JAGAL REFRESH] Manual refresh triggered');
+    console.log('👤 [JAGAL REFRESH] Current user:', user);
+
+    try {
+      const jagalEntityId = user?.entityId || user?.id;
+      const endpoint = `${API_BASE}/transaksiPenjualan/incoming/JAGAL/${jagalEntityId}`;
+      console.log('🌐 [JAGAL REFRESH] Using entity ID:', jagalEntityId);
+      console.log('🌐 [JAGAL REFRESH] Refresh endpoint:', endpoint);
+      
+      const res = await fetch(endpoint, { headers });
+      console.log('📡 [JAGAL REFRESH] Refresh response status:', res.status, res.statusText);
+      
+      const response = await res.json();
+      console.log('📦 [JAGAL REFRESH] Refresh response data:', response);
+      
+      if (!res.ok) {
+        console.error('❌ [JAGAL REFRESH] Refresh failed:', response);
+        throw new Error(response?.error || 'Gagal memuat ulang transaksi masuk');
+      }
+
+      const mapped = (response?.data || []).map((tp, index) => {
+        console.log(`🔄 [JAGAL REFRESH] Processing refresh transaction ${index + 1}:`, tp);
+        
+        const mappedTransaction = {
+          id: tp.id,
+          date: tp.timestamp ? new Date(tp.timestamp).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          sellerId: tp.penjualId,
+          sellerName: tp.sellerInfo?.nama || tp.penjualId || '-',
+          sellerType: tp.penjualType,
+          cattleId: tp.sapiId || tp.dagingId || '-',
+          quantity: tp.jumlahQty || 1,
+          status: tp.verificationStatus === 'VERIFIED' ? 'verified' : tp.verificationStatus === 'REJECTED' ? 'rejected' : 'pending',
+          verificationStatus: tp.verificationStatus,
+          blockchainHash: '',
+          cid: tp.cid,
+          verificationCode: tp.verificationCode,
+          canAccept: tp.verificationStatus === 'PENDING' || tp.verificationStatus === 'WAITING_BUYER',
+          rawData: tp
+        };
+        
+        console.log(`✅ [JAGAL REFRESH] Mapped refresh transaction ${index + 1}:`, mappedTransaction);
+        return mappedTransaction;
+      });
+      
+      console.log('📊 [JAGAL REFRESH] Refresh summary:', {
+        total: mapped.length,
+        pending: mapped.filter(t => t.status === 'pending').length,
+        verified: mapped.filter(t => t.status === 'verified').length,
+        rejected: mapped.filter(t => t.status === 'rejected').length,
+        canAccept: mapped.filter(t => t.canAccept).length
+      });
+      
+      setIncomingTransactions(mapped);
+      console.log('✅ [JAGAL REFRESH] Refresh completed successfully');
+    } catch (err) {
+      console.error('❌ [JAGAL REFRESH] Refresh error:', err);
+      console.error('🔍 [JAGAL REFRESH] Error details:', {
+        message: err.message,
+        stack: err.stack,
+        user: user,
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
+
   const processPageSetup = () => {
     const storedCattle = localStorage.getItem('selectedCattleForSale');
     if (storedCattle) {
@@ -273,7 +476,16 @@ const JagalTransaksi = () => {
     localStorage.removeItem('fromSidebar');
   };
 
-  const handleTabChange = (tab) => setActiveTab(tab);
+  const handleTabChange = (tab) => {
+    console.log('🔄 [JAGAL TAB] Tab changed from', activeTab, 'to', tab);
+    if (tab === 'incoming') {
+      console.log('📋 [JAGAL TAB] Switching to incoming tab, current data:', {
+        incomingCount: incomingTransactions.length,
+        incomingTransactions: incomingTransactions
+      });
+    }
+    setActiveTab(tab);
+  };
 
   const handleNewTransaction = async (e) => {
     e.preventDefault();
@@ -297,7 +509,7 @@ const JagalTransaksi = () => {
 
       const payload = {
         penjualType: 'JAGAL',
-        jagalPenjualId: user?.id,
+        jagalPenjualId: user?.entityId,
         pembeliType,
         ...pembeliFields,
         sapiId: newTransaction.cattleId,
@@ -473,10 +685,158 @@ const JagalTransaksi = () => {
 
   const getVerificationBadge = (status) => {
     switch(status) {
-      case 'waiting_buyer': return <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">Menunggu Pembeli</span>;
-      case 'verified': return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Terverifikasi</span>;
-      case 'rejected': return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">Ditolak</span>;
+      case 'waiting_buyer':
+      case 'WAITING_BUYER':
+      case 'PENDING': return <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">Menunggu Pembeli</span>;
+      case 'verified':
+      case 'VERIFIED': return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Terverifikasi</span>;
+      case 'rejected':
+      case 'REJECTED': return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">Ditolak</span>;
       default: return <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">Unknown</span>;
+    }
+  };
+
+  const handleAcceptIncomingTransaction = async (transactionId) => {
+    if (!window.confirm('Terima transaksi ini dari pasar hewan?')) return;
+
+    console.log('✅ [JAGAL ACCEPT] Starting accept transaction process...');
+    console.log('🆔 [JAGAL ACCEPT] Transaction ID:', transactionId);
+
+    const API_BASE = 'http://localhost:3000';
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const transaction = incomingTransactions.find(t => t.id === transactionId);
+    console.log('📋 [JAGAL ACCEPT] Transaction details:', transaction);
+
+    try {
+      const endpoint = `${API_BASE}/transaksiPenjualan/${transactionId}/verify`;
+      console.log('🌐 [JAGAL ACCEPT] Verify endpoint:', endpoint);
+
+      const payload = {
+        action: 'accept',
+        verificationStatus: 'VERIFIED'
+      };
+      console.log('📦 [JAGAL ACCEPT] Request payload:', payload);
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      console.log('📡 [JAGAL ACCEPT] Response status:', res.status, res.statusText);
+
+      const response = await res.json();
+      console.log('📦 [JAGAL ACCEPT] Response data:', response);
+
+      if (!res.ok) {
+        console.error('❌ [JAGAL ACCEPT] Accept failed:', response);
+        throw new Error(response?.error || 'Gagal menerima transaksi');
+      }
+
+      console.log('✅ [JAGAL ACCEPT] Transaction accepted successfully');
+
+      // Update status transaksi masuk
+      setIncomingTransactions(prev => {
+        const updated = prev.map(tx =>
+          tx.id === transactionId
+            ? { ...tx, status: 'verified', verificationStatus: 'VERIFIED', canAccept: false }
+            : tx
+        );
+        console.log('🔄 [JAGAL ACCEPT] Updated state:', updated);
+        return updated;
+      });
+
+      alert('Transaksi berhasil diterima dan diverifikasi!');
+
+      // Refresh incoming transactions
+      console.log('🔄 [JAGAL ACCEPT] Triggering refresh...');
+      await refreshIncomingTransactions();
+      console.log('🎉 [JAGAL ACCEPT] Process completed successfully');
+    } catch (error) {
+      console.error('❌ [JAGAL ACCEPT] Accept error:', error);
+      console.error('🔍 [JAGAL ACCEPT] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        transactionId,
+        transaction,
+        timestamp: new Date().toISOString()
+      });
+      alert('Gagal menerima transaksi: ' + error.message);
+    }
+  };
+
+  // Handler untuk menolak transaksi masuk
+  const handleRejectIncomingTransaction = async (transactionId) => {
+    if (!window.confirm('Tolak transaksi ini dari pasar hewan?')) return;
+    
+    console.log('❌ [JAGAL REJECT] Starting reject transaction process...');
+    console.log('🆔 [JAGAL REJECT] Transaction ID:', transactionId);
+    
+    const API_BASE = 'http://localhost:3000';
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const transaction = incomingTransactions.find(t => t.id === transactionId);
+    console.log('📋 [JAGAL REJECT] Transaction details:', transaction);
+
+    try {
+      const endpoint = `${API_BASE}/transaksiPenjualan/${transactionId}/reject`;
+      console.log('🌐 [JAGAL REJECT] Reject endpoint:', endpoint);
+      
+      const payload = { 
+        reason: 'Ditolak oleh jagal'
+      };
+      console.log('📦 [JAGAL REJECT] Request payload:', payload);
+      
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('📡 [JAGAL REJECT] Response status:', res.status, res.statusText);
+      
+      const response = await res.json();
+      console.log('📦 [JAGAL REJECT] Response data:', response);
+      
+      if (!res.ok) {
+        console.error('❌ [JAGAL REJECT] Reject failed:', response);
+        throw new Error(response?.error || 'Gagal menolak transaksi');
+      }
+
+      console.log('✅ [JAGAL REJECT] Transaction rejected successfully');
+
+      // Update status transaksi masuk
+      setIncomingTransactions(prev => {
+        const updated = prev.map(tx => 
+          tx.id === transactionId 
+            ? { ...tx, status: 'rejected', verificationStatus: 'REJECTED', canAccept: false }
+            : tx
+        );
+        console.log('🔄 [JAGAL REJECT] Updated state:', updated);
+        return updated;
+      });
+
+      alert('Transaksi berhasil ditolak!');
+      
+      // Refresh incoming transactions
+      console.log('🔄 [JAGAL REJECT] Triggering refresh...');
+      await refreshIncomingTransactions();
+      console.log('🎉 [JAGAL REJECT] Process completed successfully');
+    } catch (error) {
+      console.error('❌ [JAGAL REJECT] Reject error:', error);
+      console.error('🔍 [JAGAL REJECT] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        transactionId,
+        transaction,
+        timestamp: new Date().toISOString()
+      });
+      alert('Gagal menolak transaksi: ' + error.message);
     }
   };
 
@@ -503,7 +863,7 @@ const JagalTransaksi = () => {
 
       const payload = {
         penjualType: 'JAGAL',
-        jagalPenjualId: user?.id,
+        jagalPenjualId: user?.entityId,
         pembeliType: recipientType,
         ...pembeliFields,
         sapiId: newTransfer.cattleId,
@@ -575,7 +935,9 @@ const JagalTransaksi = () => {
     try {
       const cows = JSON.parse(localStorage.getItem('cattleList') || '[]');
       localStorage.setItem('cattleList', JSON.stringify(cows.map(c => c.id === slaughterForm.sapiId ? { ...c, availability: 'processed' } : c)));
-    } catch {}
+    } catch (error) {
+      console.error('Error updating cattle list:', error);
+    }
     setSlaughterForm({ rphId: '', sapiId: '', distributorId: '', timestamp: '', berat: '', idPengecekanHalalSehat: '' });
   };
 
@@ -661,6 +1023,7 @@ const JagalTransaksi = () => {
       <div className="mt-4 min-h-[70vh] overflow-y-auto pr-1">
         <div className="flex border-b border-gray-200 mb-8 gap-2">
           <button className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'sales' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`} onClick={() => handleTabChange('sales')}>Transaksi Penjualan</button>
+          <button className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'incoming' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`} onClick={() => handleTabChange('incoming')}>Transaksi Masuk</button>
           <button className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'slaughter' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`} onClick={() => handleTabChange('slaughter')}>Transaksi Penyembelihan</button>
           <button className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'verification' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`} onClick={() => handleTabChange('verification')}>Verifikasi Transaksi</button>
           <button className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'}`} onClick={() => handleTabChange('history')}>Riwayat Transaksi</button>
@@ -855,6 +1218,154 @@ const JagalTransaksi = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'incoming' && (() => {
+          console.log('🎨 [JAGAL UI] Rendering incoming transactions tab');
+          console.log('📊 [JAGAL UI] Current incoming transactions:', incomingTransactions);
+          console.log('📈 [JAGAL UI] Stats:', {
+            total: incomingTransactions.length,
+            canAccept: incomingTransactions.filter(t => t.canAccept).length,
+            verified: incomingTransactions.filter(t => t.status === 'verified').length
+          });
+          
+          return (
+            <div className="bg-white rounded-lg shadow p-6 mb-8">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                    <i className="fas fa-arrow-down text-primary"></i> Transaksi Masuk dari Pasar Hewan
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">Kelola dan verifikasi transaksi sapi yang diterima dari pasar hewan</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    console.log('🔄 [JAGAL UI] Manual refresh button clicked');
+                    refreshIncomingTransactions();
+                  }}
+                  className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primaryDark transition text-sm"
+                >
+                  <i className="fas fa-sync mr-1"></i> Refresh
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <i className="fas fa-inbox text-blue-500 text-2xl mb-2"></i>
+                <p className="text-sm text-gray-600">Total Masuk</p>
+                <p className="text-xl font-semibold text-blue-600">{incomingTransactions.length}</p>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                <i className="fas fa-hourglass-half text-yellow-500 text-2xl mb-2"></i>
+                <p className="text-sm text-gray-600">Menunggu Persetujuan</p>
+                <p className="text-xl font-semibold text-yellow-600">{incomingTransactions.filter(t => t.canAccept).length}</p>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <i className="fas fa-check-circle text-green-500 text-2xl mb-2"></i>
+                <p className="text-sm text-gray-600">Diterima</p>
+                <p className="text-xl font-semibold text-green-600">{incomingTransactions.filter(t => t.status === 'verified').length}</p>
+              </div>
+            </div>
+
+            {incomingTransactions.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <i className="fas fa-inbox text-gray-400 text-4xl mb-3"></i>
+                <h3 className="text-lg font-medium text-gray-600 mb-2">Belum ada transaksi masuk</h3>
+                <p className="text-sm text-gray-500">Transaksi dari pasar hewan akan muncul di sini</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Transaksi</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penjual</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sapi ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {incomingTransactions.map((transaction) => (
+                      <tr key={transaction.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{transaction.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(transaction.date)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div>
+                            <div className="font-medium">{transaction.sellerName}</div>
+                            <div className="text-xs text-gray-500">{transaction.sellerType}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.cattleId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.quantity}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {transaction.status === 'verified' && (
+                            <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Diterima</span>
+                          )}
+                          {transaction.status === 'rejected' && (
+                            <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">Ditolak</span>
+                          )}
+                          {transaction.status === 'pending' && (
+                            <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">Menunggu</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {transaction.cid ? (
+                            <a
+                              href={`https://ipfs.io/ipfs/${transaction.cid}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                              title={transaction.cid}
+                            >
+                              {transaction.cid.length > 18
+                                ? `${transaction.cid.slice(0, 8)}...${transaction.cid.slice(-8)}`
+                                : transaction.cid}
+                            </a>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center gap-2">
+                            {transaction.canAccept && (
+                              <>
+                                <button 
+                                  onClick={() => handleAcceptIncomingTransaction(transaction.id)}
+                                  className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 transition"
+                                >
+                                  Terima
+                                </button>
+                                <button 
+                                  onClick={() => handleRejectIncomingTransaction(transaction.id)}
+                                  className="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 transition"
+                                >
+                                  Tolak
+                                </button>
+                              </>
+                            )}
+                            <button 
+                              onClick={() => {
+                                setSelectedTransaction(transaction);
+                                setShowDetailModal(true);
+                              }}
+                              className="text-blue-500 hover:text-blue-700 text-xs"
+                            >
+                              Detail
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          );
+        })()}
 
         {activeTab === 'verification' && (
           <div className="bg-white rounded-lg shadow p-6">

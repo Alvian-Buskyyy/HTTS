@@ -7,30 +7,35 @@ Mengubah alur verifikasi OTP dari "generate OTP terlebih dahulu" menjadi **"OTP 
 ## Sebelum vs Sesudah
 
 ### **SEBELUM:**
+
 1. User buat transaksi → status PENDING
 2. User ke halaman verifikasi → klik "Mulai Verifikasi Bersama"
 3. OTP dikirim ke email → modal terbuka
 4. User input OTP dan verifikasi
 
 ### **SESUDAH:**
+
 1. User buat transaksi → **OTP langsung dikirim ke email** → status PENDING
-2. User ke halaman verifikasi → klik "Masukkan OTP" 
+2. User ke halaman verifikasi → klik "Masukkan OTP"
 3. Modal langsung terbuka dengan form input OTP
 4. User input OTP dan verifikasi
 
 ## Perubahan File
 
 ### **1. Backend (Tidak Berubah)**
+
 Backend sudah mengirim OTP saat transaksi dibuat melalui `createTransaksiPenjualan`.
 
 ### **2. Frontend Peternak (`PeternakTransaksi.jsx`)**
 
 **Dihapus:**
+
 - Fungsi `handleRequestVerification()` - tidak lagi digunakan
 - Conditional check `verifyingTx.verificationCode &&` di modal
 - Tombol "Mulai Verifikasi Bersama"
 
 **Diubah:**
+
 - Tombol "Verifikasi OTP" → **"Masukkan OTP"**
 - Modal langsung tampilkan input OTP tanpa perlu generate OTP dulu
 - Pesan email: "Kode OTP telah dikirim ke email admin **saat transaksi dibuat**!"
@@ -38,11 +43,13 @@ Backend sudah mengirim OTP saat transaksi dibuat melalui `createTransaksiPenjual
 ### **3. Frontend Pasar Hewan (`PasarHewanTransfer.jsx`)**
 
 **Dihapus:**
+
 - Fungsi `handleRequestVerification()` - tidak lagi digunakan
 - Conditional check untuk OTP generation
 - Tombol "Kirim Kode OTP ke Email"
 
 **Diubah:**
+
 - Tombol "Verifikasi (Pembeli)" → **"Masukkan OTP"**
 - Modal langsung tampilkan input OTP
 - Hapus section "Kode OTP belum dibuat"
@@ -51,15 +58,17 @@ Backend sudah mengirim OTP saat transaksi dibuat melalui `createTransaksiPenjual
 ## Alur Baru yang Sudah Diterapkan
 
 ### **Peternak (Penjual):**
+
 1. ✅ Buat transaksi → OTP otomatis dikirim ke email
-2. ✅ Ke tab "Verifikasi Transaksi" 
+2. ✅ Ke tab "Verifikasi Transaksi"
 3. ✅ Klik "Masukkan OTP" → modal terbuka langsung
 4. ✅ Input 6 digit OTP dari email → klik "Konfirmasi & Verifikasi"
 
 ### **Pasar Hewan (Pembeli):**
+
 1. ✅ Lihat transaksi masuk di tab "Transaksi Masuk"
 2. ✅ Setelah peternak verifikasi → tombol "Masukkan OTP" aktif
-3. ✅ Klik "Masukkan OTP" → modal terbuka langsung  
+3. ✅ Klik "Masukkan OTP" → modal terbuka langsung
 4. ✅ Input 6 digit OTP yang sama → klik "Konfirmasi & Verifikasi"
 
 ## Keuntungan Alur Baru
@@ -73,14 +82,16 @@ Backend sudah mengirim OTP saat transaksi dibuat melalui `createTransaksiPenjual
 ## Testing
 
 ### **Test Flow Lengkap:**
+
 1. **Peternak**: Buat transaksi baru → cek email untuk OTP
 2. **Peternak**: Ke tab Verifikasi → klik "Masukkan OTP" → input OTP → verifikasi
-3. **Pasar Hewan**: Refresh halaman → tombol "Masukkan OTP" aktif → input OTP yang sama → verifikasi  
+3. **Pasar Hewan**: Refresh halaman → tombol "Masukkan OTP" aktif → input OTP yang sama → verifikasi
 4. **Hasil**: Transaksi status jadi "VERIFIED" dan ter-upload ke IPFS
 
 ### **Test Cases:**
+
 - ✅ OTP dikirim otomatis saat transaksi dibuat
-- ✅ Modal langsung terbuka tanpa generate OTP lagi  
+- ✅ Modal langsung terbuka tanpa generate OTP lagi
 - ✅ Input OTP works untuk peternak (seller first)
 - ✅ Input OTP works untuk pasar hewan setelah seller verify
 - ✅ Tombol disabled jika OTP belum 6 digit
@@ -94,7 +105,7 @@ Backend sudah mengirim OTP saat transaksi dibuat melalui `createTransaksiPenjual
   Verifikasi OTP
 </button>
 
-// SESUDAH - Langsung input OTP  
+// SESUDAH - Langsung input OTP
 <button onClick={() => {
   setVerifyingTx(tx);
   setShowVerifyModal(true);
@@ -108,10 +119,10 @@ Backend sudah mengirim OTP saat transaksi dibuat melalui `createTransaksiPenjual
 )}
 
 // SESUDAH - Langsung tampil
-<input 
+<input
   placeholder="000000"
-  maxLength="6" 
-  ... 
+  maxLength="6"
+  ...
 />
 ```
 

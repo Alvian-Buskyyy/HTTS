@@ -13,34 +13,36 @@
 ## Perbaikan yang Dilakukan
 
 ### 1. **Perbaikan Data Mapping**
+
 ```javascript
 // Sebelum
-verify: { 
-  sellerSigned: !!t.verifikasiPenjual, 
-  buyerSigned: !!t.verifikasiPembeli, 
-  code: t.verificationCode || '' 
+verify: {
+  sellerSigned: !!t.verifikasiPenjual,
+  buyerSigned: !!t.verifikasiPembeli,
+  code: t.verificationCode || ''
 },
 
 // Sesudah - Menambah field langsung
 verifikasiPenjual: !!t.verifikasiPenjual, // Add this field directly
 verifikasiPembeli: !!t.verifikasiPembeli, // Add this field directly
-verify: { 
-  sellerSigned: !!t.verifikasiPenjual, 
-  buyerSigned: !!t.verifikasiPembeli, 
-  code: t.verificationCode || '' 
+verify: {
+  sellerSigned: !!t.verifikasiPenjual,
+  buyerSigned: !!t.verifikasiPembeli,
+  code: t.verificationCode || ''
 },
 ```
 
 ### 2. **Fungsi Refresh Data Otomatis**
+
 ```javascript
 const refreshTransactionData = async () => {
   // Re-fetch data terbaru dari backend
   const resIncoming = await fetch(`${API_BASE}/transaksiPenjualan/incoming/PASAR_HEWAN/${pasarHewanId}`);
   // Update state dengan data fresh
-  setTransactions(prevTransactions => {
-    return prevTransactions.map(existingTx => {
-      const updatedTx = incomingTx.find(t => t.id === existingTx.id);
-      if (updatedTx && existingTx.direction === 'incoming') {
+  setTransactions((prevTransactions) => {
+    return prevTransactions.map((existingTx) => {
+      const updatedTx = incomingTx.find((t) => t.id === existingTx.id);
+      if (updatedTx && existingTx.direction === "incoming") {
         return {
           ...existingTx,
           verifikasiPenjual: !!updatedTx.verifikasiPenjual,
@@ -55,43 +57,43 @@ const refreshTransactionData = async () => {
 ```
 
 ### 3. **Perbaikan Logic Tombol**
+
 ```javascript
-{transaction.verifikasiPenjual && !transaction.verifikasiPembeli ? (
-  // TOMBOL AKTIF: Penjual sudah verifikasi, pembeli belum
-  <button 
-    className="px-3 py-1 rounded text-xs border border-green-400 text-green-600 bg-white hover:bg-green-50" 
-    onClick={() => {
-      setVerifyingTx(transaction);
-      setShowVerifyModal(true);
-      setVerifySuccess('Penjual sudah verifikasi. Silakan masukkan kode OTP untuk verifikasi pembeli.');
-    }}
-  >
-    <i className="fas fa-handshake mr-1"></i>Verifikasi (Pembeli)
-  </button>
-) : transaction.verifikasiPenjual === false && transaction.verifikasiPembeli === false ? (
-  // TOMBOL DISABLED: Menunggu penjual
-  <button 
-    className="px-3 py-1 rounded text-xs border border-gray-400 text-gray-500 bg-gray-100 cursor-not-allowed" 
-    disabled
-    title="Menunggu penjual memulai dan melakukan verifikasi"
-  >
-    <i className="fas fa-clock mr-1"></i>Menunggu Penjual
-  </button>
-) : (
-  // TOMBOL REFRESH: Untuk status lainnya
-  <button 
-    className="px-3 py-1 rounded text-xs border border-blue-400 text-blue-600 bg-white hover:bg-blue-50" 
-    onClick={() => {
-      refreshTransactionData(); // Refresh data first
-      handleRequestVerification(transaction.id);
-    }}
-  >
-    <i className="fas fa-sync mr-1"></i>Refresh Status
-  </button>
-)}
+{
+  transaction.verifikasiPenjual && !transaction.verifikasiPembeli ? (
+    // TOMBOL AKTIF: Penjual sudah verifikasi, pembeli belum
+    <button
+      className="px-3 py-1 rounded text-xs border border-green-400 text-green-600 bg-white hover:bg-green-50"
+      onClick={() => {
+        setVerifyingTx(transaction);
+        setShowVerifyModal(true);
+        setVerifySuccess("Penjual sudah verifikasi. Silakan masukkan kode OTP untuk verifikasi pembeli.");
+      }}
+    >
+      <i className="fas fa-handshake mr-1"></i>Verifikasi (Pembeli)
+    </button>
+  ) : transaction.verifikasiPenjual === false && transaction.verifikasiPembeli === false ? (
+    // TOMBOL DISABLED: Menunggu penjual
+    <button className="px-3 py-1 rounded text-xs border border-gray-400 text-gray-500 bg-gray-100 cursor-not-allowed" disabled title="Menunggu penjual memulai dan melakukan verifikasi">
+      <i className="fas fa-clock mr-1"></i>Menunggu Penjual
+    </button>
+  ) : (
+    // TOMBOL REFRESH: Untuk status lainnya
+    <button
+      className="px-3 py-1 rounded text-xs border border-blue-400 text-blue-600 bg-white hover:bg-blue-50"
+      onClick={() => {
+        refreshTransactionData(); // Refresh data first
+        handleRequestVerification(transaction.id);
+      }}
+    >
+      <i className="fas fa-sync mr-1"></i>Refresh Status
+    </button>
+  );
+}
 ```
 
 ### 4. **Auto-refresh Berkala**
+
 ```javascript
 // Auto-refresh data every 30 seconds for better UX
 useEffect(() => {
@@ -104,21 +106,22 @@ useEffect(() => {
 ```
 
 ### 5. **Perbaikan Fungsi handleRequestVerification**
+
 ```javascript
 const handleRequestVerification = async (id) => {
   // Refresh data terlebih dahulu
   await refreshTransactionData();
-  
+
   // Get updated transaction
   const updatedTx = transactions.find((t) => t.id === id) || tx;
-  
+
   // Check status dan beri feedback yang tepat
   if (updatedTx.verifikasiPenjual && !updatedTx.verifikasiPembeli) {
     // Seller has verified, buyer can now verify
-    setVerifySuccess('Penjual sudah verifikasi. Silakan masukkan kode OTP untuk verifikasi pembeli.');
+    setVerifySuccess("Penjual sudah verifikasi. Silakan masukkan kode OTP untuk verifikasi pembeli.");
   } else if (!updatedTx.verifikasiPenjual) {
     // Seller hasn't verified yet
-    setVerifyError('Penjual belum melakukan verifikasi. Silakan tunggu penjual untuk memulai verifikasi.');
+    setVerifyError("Penjual belum melakukan verifikasi. Silakan tunggu penjual untuk memulai verifikasi.");
   }
 };
 ```
@@ -126,6 +129,7 @@ const handleRequestVerification = async (id) => {
 ## Flow Verifikasi yang Diperbaiki
 
 1. **Peternak (Penjual)**:
+
    - Klik "Mulai Verifikasi Bersama"
    - Masukkan OTP dan verifikasi
    - `verifikasiPenjual` menjadi `true`
@@ -146,6 +150,7 @@ const handleRequestVerification = async (id) => {
 ## Testing
 
 Untuk test flow ini:
+
 1. Login sebagai peternak, buat transaksi, lakukan verifikasi
 2. Login sebagai pasar hewan, refresh data (manual atau tunggu auto-refresh)
 3. Tombol "Verifikasi (Pembeli)" harus aktif

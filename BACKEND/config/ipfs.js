@@ -1,7 +1,7 @@
 let ipfs;
 
 const initializeIPFS = async () => {
-  const { create } = await import('ipfs-http-client');
+  const { create } = await import("ipfs-http-client");
   ipfs = create({ host: "localhost", port: "5001", protocol: "http" });
   return ipfs;
 };
@@ -14,12 +14,15 @@ exports.uploadToIPFS = async (fileContent) => {
     return added.cid.toString(); // CID file
   } catch (error) {
     console.error("Error uploading to IPFS:", error);
-    
+
     // Fallback: Generate mock CID when IPFS is down
     const timestamp = Date.now();
-    const hash = require('crypto').createHash('sha256').update(fileContent + timestamp).digest('hex');
+    const hash = require("crypto")
+      .createHash("sha256")
+      .update(fileContent + timestamp)
+      .digest("hex");
     const mockCID = `bafybeig${hash.substring(0, 52)}`;
-    
+
     console.log("IPFS node tidak tersedia, menggunakan mock CID:", mockCID);
     return mockCID;
   }
@@ -29,7 +32,7 @@ exports.getFromIPFS = async (hash) => {
   try {
     if (!ipfs) await initializeIPFS();
     const stream = ipfs.cat(hash);
-    let data = '';
+    let data = "";
 
     for await (const chunk of stream) {
       data += chunk.toString();

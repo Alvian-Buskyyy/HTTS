@@ -1,6 +1,7 @@
 # Quick Test Guide - Secure Two-Party OTP Verification
 
 ## Prerequisites
+
 - Backend server running on `http://localhost:3000`
 - Valid peternak and pasar hewan entities in the database
 - Valid sapi records owned by the peternak
@@ -8,13 +9,14 @@
 ## Manual Testing Steps
 
 ### 1. Create Test Transaction
+
 ```bash
 curl -X POST http://localhost:3000/transaksiPenjualan \
   -H "Content-Type: application/json" \
   -d '{
     "penjualType": "PETERNAK",
     "penjualId": "YOUR_PETERNAK_ID",
-    "pembeliType": "PASAR_HEWAN", 
+    "pembeliType": "PASAR_HEWAN",
     "pembeliId": "YOUR_PASAR_HEWAN_ID",
     "sapiId": "YOUR_SAPI_ID",
     "jumlahQty": 1,
@@ -25,6 +27,7 @@ curl -X POST http://localhost:3000/transaksiPenjualan \
 ### 2. Test Seller-Only OTP Generation
 
 **✅ Valid Request (Seller)**:
+
 ```bash
 curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/requestVerification \
   -H "Content-Type: application/json" \
@@ -35,6 +38,7 @@ curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/requestVeri
 ```
 
 **❌ Invalid Request (Buyer)**:
+
 ```bash
 curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/requestVerification \
   -H "Content-Type: application/json" \
@@ -43,11 +47,13 @@ curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/requestVeri
     "requesterType": "PASAR_HEWAN"
   }'
 ```
-*Expected: 403 error "Hanya penjual yang dapat memulai proses verifikasi bersama"*
+
+_Expected: 403 error "Hanya penjual yang dapat memulai proses verifikasi bersama"_
 
 ### 3. Test Buyer-Cannot-Verify-First
 
 **❌ Buyer Tries to Verify First**:
+
 ```bash
 curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/verify \
   -H "Content-Type: application/json" \
@@ -56,11 +62,13 @@ curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/verify \
     "verifierRole": "buyer"
   }'
 ```
-*Expected: 400 error "Penjual harus melakukan verifikasi terlebih dahulu..."*
+
+_Expected: 400 error "Penjual harus melakukan verifikasi terlebih dahulu..."_
 
 ### 4. Test Proper Verification Flow
 
 **✅ Seller Verifies First**:
+
 ```bash
 curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/verify \
   -H "Content-Type: application/json" \
@@ -71,6 +79,7 @@ curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/verify \
 ```
 
 **✅ Buyer Verifies After Seller**:
+
 ```bash
 curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/verify \
   -H "Content-Type: application/json" \
@@ -81,11 +90,13 @@ curl -X POST http://localhost:3000/transaksiPenjualan/TRANSACTION_ID/verify \
 ```
 
 ### 5. Verify Final Status
+
 ```bash
 curl -X GET http://localhost:3000/transaksiPenjualan/TRANSACTION_ID
 ```
 
 Expected final state:
+
 ```json
 {
   "verificationStatus": "VERIFIED",
@@ -99,6 +110,7 @@ Expected final state:
 ## Frontend Testing
 
 ### Peternak (Seller) UI
+
 1. Login as peternak
 2. Navigate to Transaksi page
 3. Create new transaction or find existing pending transaction
@@ -108,6 +120,7 @@ Expected final state:
 7. Confirm success message mentions waiting for buyer
 
 ### Pasar Hewan (Buyer) UI
+
 1. Login as pasar hewan
 2. Navigate to Transfer page
 3. Check incoming transactions
@@ -119,6 +132,7 @@ Expected final state:
 ## Expected Behaviors
 
 ### ✅ Should Work
+
 - Seller can initiate verification
 - Seller can verify with correct OTP
 - Buyer can verify after seller with same OTP
@@ -126,6 +140,7 @@ Expected final state:
 - IPFS upload (with fallback if IPFS fails)
 
 ### ❌ Should Fail
+
 - Buyer trying to initiate verification
 - Buyer trying to verify before seller
 - Wrong OTP code
@@ -134,8 +149,9 @@ Expected final state:
 ## Database Validation
 
 Check transaction status in database:
+
 ```sql
-SELECT 
+SELECT
   id,
   verificationStatus,
   verifikasiPenjual,
@@ -143,19 +159,21 @@ SELECT
   verificationCode,
   cid,
   timestamp
-FROM TransaksiPenjualan 
+FROM TransaksiPenjualan
 WHERE id = 'YOUR_TRANSACTION_ID';
 ```
 
 ## Troubleshooting
 
 ### Common Issues
+
 1. **403 Error on requestVerification**: Check requesterType matches penjualType
 2. **400 Error on buyer verification**: Ensure seller has verified first
 3. **IPFS Errors**: Check IPFS node is running (transaction should still proceed)
 4. **Email Not Received**: Check email service configuration
 
 ### Debug Tips
+
 - Check server logs for detailed error messages
 - Verify entity IDs exist in database
 - Ensure transaction is in PENDING status
