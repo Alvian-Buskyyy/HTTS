@@ -204,6 +204,10 @@ model Sapi {
   jagalId                String?
   jagal                  Jagal? @relation(fields: [jagalId], references: [id])
   
+  // Flag untuk tracking sapi sudah diproses menjadi daging
+  isProcessed            Boolean    @default(false)
+  processedAt            DateTime?
+  
   daging                 Daging?
   transaksiPenyembelihan TransaksiPenyembelihan[]
   transaksiPenjualan     TransaksiPenjualan[]
@@ -231,9 +235,14 @@ model Daging {
   transaksiPenyembelihanId String   @unique
   transaksiPenyembelihan TransaksiPenyembelihan @relation(fields: [transaksiPenyembelihanId], references: [id])
   
+  // Verifikasi bersama Jagal dan Regulator
+  verifikasiJagal        Boolean    @default(false)
+  verifikasiRegulator    Boolean    @default(false)
+  
   // Status verifikasi halal
   statusHalal            VerificationStatus @default(PENDING)
   kodeVerifikasiHalal    String?    // Kode verifikasi antara RPH dan Regulator
+  verifiedAt             DateTime?  // Timestamp kapan daging terverifikasi halal
   
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt

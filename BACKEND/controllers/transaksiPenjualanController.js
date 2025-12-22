@@ -1128,136 +1128,133 @@ exports.verifyTransaction = async (req, res) => {
 
     // Update verification based on role
     let updateData = {};
-    let shouldCompleteTransaction = false;
+    let isCompleted = false;
 
     if (verifierRole === "seller") {
       updateData.verifikasiPenjual = true;
-      // Check if buyer already verified
-      shouldCompleteTransaction = existing.verifikasiPembeli;
+      // Jangan set VERIFIED di sini, tunggu pembeli juga verifikasi
+      updateData.verificationStatus = "PENDING";
     } else if (verifierRole === "buyer") {
-      // Enforce that seller must verify first
+      // Penjual harus sudah verifikasi dulu
       if (!existing.verifikasiPenjual) {
         return res.status(400).json({
           error: "Penjual harus melakukan verifikasi terlebih dahulu sebelum pembeli dapat verifikasi",
         });
       }
       updateData.verifikasiPembeli = true;
-      // Since seller has already verified (checked above), transaction will be completed
-      shouldCompleteTransaction = true;
-    } else {
-      return res.status(400).json({ error: 'verifierRole harus berisi "seller" atau "buyer"' });
-    }
+      // Jika kedua pihak sudah verifikasi, baru set VERIFIED
+      if (existing.verifikasiPenjual) {
+        updateData.verificationStatus = "VERIFIED";
+        updateData.timestamp = new Date();
 
-    // If both parties have verified, complete the transaction
-    if (shouldCompleteTransaction) {
-      updateData.verificationStatus = "VERIFIED";
-      updateData.timestamp = new Date();
-
-      // Prepare transaction data for IPFS
-      const transaksiData = {
-        penjualType: existing.penjualType,
-        penjualId: existing.penjualId,
-        pembeliType: existing.pembeliType,
-        pembeliId: existing.pembeliId,
-        sapiId: existing.sapiId,
-        dagingId: existing.dagingId,
-        jumlahQty: existing.jumlahQty,
-        type: existing.type,
-        timestamp: updateData.timestamp.toISOString(),
-        verificationCode: existing.verificationCode,
-        verifiedBySeller: true,
-        verifiedByBuyer: true,
-      };
-
-      // Upload to IPFS and get CID
-      let cid = null;
-      try {
-        const transaksiDataString = JSON.stringify(transaksiData);
-        cid = await uploadToIPFS(transaksiDataString);
-        updateData.cid = cid;
-      } catch (ipfsError) {
-        console.error("IPFS upload failed:", ipfsError);
-        // Continue with transaction even if IPFS fails
-        updateData.cid = null;
-        // You could store the transaction data in database for later IPFS retry
-        console.log("Transaction will proceed without IPFS storage");
-      }
-
-      // Transfer ownership after both parties verified
-      if (existing.sapiId) {
-        const ownershipUpdate = {
-          peternakId: null,
-          pasarHewanId: null,
-          jagalId: null,
+        // Prepare transaction data for IPFS
+        const transaksiData = {
+          penjualType: existing.penjualType,
+          penjualId: existing.penjualId,
+          pembeliType: existing.pembeliType,
+          pembeliId: existing.pembeliId,
+          sapiId: existing.sapiId,
+          dagingId: existing.dagingId,
+          jumlahQty: existing.jumlahQty,
+          type: existing.type,
+          timestamp: updateData.timestamp.toISOString(),
+          verificationCode: existing.verificationCode,
+          verifiedBySeller: true,
+          verifiedByBuyer: true,
         };
 
-        // Update ownership based on buyer type
-        if (existing.pembeliType === "PETERNAK") {
-          ownershipUpdate.peternakId = existing.pembeliId;
-        } else if (existing.pembeliType === "PASAR_HEWAN") {
-          ownershipUpdate.pasarHewanId = existing.pembeliId;
-        } else if (existing.pembeliType === "JAGAL") {
-          ownershipUpdate.jagalId = existing.pembeliId;
+        // Upload to IPFS and get CID
+        let cid = null;
+        try {
+          const transaksiDataString = JSON.stringify(transaksiData);
+          cid = await uploadToIPFS(transaksiDataString);
+          updateData.cid = cid;
+        } catch (ipfsError) {
+          console.error("IPFS upload failed:", ipfsError);
+          updateData.cid = null;
         }
 
-        await prisma.sapi.update({
-          where: { id: existing.sapiId },
-          data: ownershipUpdate,
-        });
+        // Transfer ownership after both parties verified
+        if (existing.sapiId) {
+          const ownershipUpdate = {
+            peternakId: null,
+            pasarHewanId: null,
+            jagalId: null,
+          };
 
-        // Update entity counters
-        // Decrement seller's count
-        try {
-          if (existing.penjualType === "PETERNAK") {
-            await prisma.peternak.update({
-              where: { id: existing.penjualId },
-              data: { jumlahSapi: { decrement: existing.jumlahQty } },
-            });
-          } else if (existing.penjualType === "PASAR_HEWAN") {
-            await prisma.pasarHewan.update({
-              where: { id: existing.penjualId },
-              data: { jumlahSapi: { decrement: existing.jumlahQty } },
-            });
-          } else if (existing.penjualType === "JAGAL") {
-            await prisma.jagal.update({
-              where: { id: existing.penjualId },
-              data: { jumlahSapi: { decrement: existing.jumlahQty } },
-            });
-          }
-        } catch (counterError) {
-          console.error("Error updating seller counter:", counterError);
-          // Continue with transaction even if counter update fails
-        }
-
-        // Increment buyer's count
-        try {
           if (existing.pembeliType === "PETERNAK") {
-            await prisma.peternak.update({
-              where: { id: existing.pembeliId },
-              data: { jumlahSapi: { increment: existing.jumlahQty } },
-            });
+            ownershipUpdate.peternakId = existing.pembeliId;
           } else if (existing.pembeliType === "PASAR_HEWAN") {
-            await prisma.pasarHewan.update({
-              where: { id: existing.pembeliId },
-              data: { jumlahSapi: { increment: existing.jumlahQty } },
-            });
+            ownershipUpdate.pasarHewanId = existing.pembeliId;
           } else if (existing.pembeliType === "JAGAL") {
-            await prisma.jagal.update({
-              where: { id: existing.pembeliId },
-              data: { jumlahSapi: { increment: existing.jumlahQty } },
-            });
+            ownershipUpdate.jagalId = existing.pembeliId;
           }
-        } catch (counterError) {
-          console.error("Error updating buyer counter:", counterError);
-          // Continue with transaction even if counter update fails
+
+          await prisma.sapi.update({
+            where: { id: existing.sapiId },
+            data: ownershipUpdate,
+          });
+
+          // Update entity counters (decrement/increment)
+          try {
+            if (existing.penjualType === "PETERNAK") {
+              await prisma.peternak.update({
+                where: { id: existing.penjualId },
+                data: { jumlahSapi: { decrement: existing.jumlahQty } },
+              });
+            } else if (existing.penjualType === "PASAR_HEWAN") {
+              await prisma.pasarHewan.update({
+                where: { id: existing.penjualId },
+                data: { jumlahSapi: { decrement: existing.jumlahQty } },
+              });
+            } else if (existing.penjualType === "JAGAL") {
+              await prisma.jagal.update({
+                where: { id: existing.penjualId },
+                data: { jumlahSapi: { decrement: existing.jumlahQty } },
+              });
+            }
+            if (existing.pembeliType === "PETERNAK") {
+              await prisma.peternak.update({
+                where: { id: existing.pembeliId },
+                data: { jumlahSapi: { increment: existing.jumlahQty } },
+              });
+            } else if (existing.pembeliType === "PASAR_HEWAN") {
+              await prisma.pasarHewan.update({
+                where: { id: existing.pembeliId },
+                data: { jumlahSapi: { increment: existing.jumlahQty } },
+              });
+            } else if (existing.pembeliType === "JAGAL") {
+              await prisma.jagal.update({
+                where: { id: existing.pembeliId },
+                data: { jumlahSapi: { increment: existing.jumlahQty } },
+              });
+            }
+          } catch (counterError) {
+            console.error("Error updating entity counter:", counterError);
+          }
         }
+        isCompleted = true;
       }
+    } else {
+      return res.status(400).json({ error: 'verifierRole harus berisi "seller" atau "buyer"' });
     }
 
     // Update the transaction
     const updatedTransaksi = await prisma.transaksiPenjualan.update({
       where: { id },
       data: updateData,
+    });
+
+    // Response message
+    const responseMessage = isCompleted
+      ? "Transaksi berhasil diverifikasi oleh kedua pihak dan tercatat di blockchain!"
+      : `Verifikasi ${verifierRole === "seller" ? "penjual" : "pembeli"} berhasil. Menunggu verifikasi pihak lain.`;
+
+    res.status(200).json({
+      message: responseMessage,
+      data: updatedTransaksi,
+      isCompleted,
+      cid: updateData.cid || null,
     });
 
     // Send success email notification if transaction is fully verified
@@ -1274,16 +1271,7 @@ exports.verifyTransaction = async (req, res) => {
       }
     }
 
-    const responseMessage = shouldCompleteTransaction
-      ? "Transaksi berhasil diverifikasi oleh kedua pihak dan tercatat di blockchain!"
-      : `Verifikasi ${verifierRole === "seller" ? "penjual" : "pembeli"} berhasil. Menunggu verifikasi pihak lain.`;
-
-    res.status(200).json({
-      message: responseMessage,
-      data: updatedTransaksi,
-      isCompleted: shouldCompleteTransaction,
-      cid: updateData.cid || null,
-    });
+    // ...existing code...
   } catch (error) {
     console.error("Error verifying transaction:", error);
     res.status(500).json({ error: error.message });

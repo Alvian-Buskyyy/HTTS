@@ -4,19 +4,6 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import JagalSidebar from '../components/JagalSidebar';
 
 const JagalTransaksi = () => {
-  // Debug informasi environment
-  React.useEffect(() => {
-    console.log('🌍 [JAGAL ENV] Environment debugging info:', {
-      currentUrl: window.location.href,
-      localStorage: {
-        token: localStorage.getItem('token') ? 'EXISTS' : 'NOT_FOUND',
-        user: JSON.parse(localStorage.getItem('user') || '{}'),
-      },
-      apiBase: 'http://localhost:3000',
-      userAgent: navigator.userAgent,
-      timestamp: new Date().toISOString()
-    });
-  }, []);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,8 +54,8 @@ const JagalTransaksi = () => {
 
   const [availableCattle, setAvailableCattle] = useState([]);
 
+  // Muat sapi milik Jagal dari backend berdasarkan transaksi pembelian (VERIFIED)
   useEffect(() => {
-    // Muat sapi milik Jagal dari backend berdasarkan transaksi pembelian (VERIFIED)
     const API_BASE = 'http://localhost:3000';
     const token = localStorage.getItem('token');
     const headers = { 'Content-Type': 'application/json' };
@@ -394,11 +381,8 @@ const JagalTransaksi = () => {
     try {
       const jagalEntityId = user?.entityId || user?.id;
       const endpoint = `${API_BASE}/transaksiPenjualan/incoming/JAGAL/${jagalEntityId}`;
-      console.log('🌐 [JAGAL REFRESH] Using entity ID:', jagalEntityId);
-      console.log('🌐 [JAGAL REFRESH] Refresh endpoint:', endpoint);
       
       const res = await fetch(endpoint, { headers });
-      console.log('📡 [JAGAL REFRESH] Refresh response status:', res.status, res.statusText);
       
       const response = await res.json();
       console.log('📦 [JAGAL REFRESH] Refresh response data:', response);
