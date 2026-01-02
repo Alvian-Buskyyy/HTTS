@@ -156,3 +156,74 @@ exports.getDagingByJagalId = async (req, res) => {
     });
   }
 };
+
+exports.getDagingByDistributorId = async (req, res) => {
+  try {
+    const { distributorId } = req.params;
+    
+    const dagingList = await prisma.daging.findMany({
+      where: {
+        distributorId: distributorId
+      },
+      include: {
+        sapi: {
+          select: {
+            id: true,
+            jenis: true,
+            beratSapi: true,
+            usia: true,
+            kelamin: true
+          }
+        },
+        jagal: {
+          select: {
+            id: true,
+            nama: true
+          }
+        },
+        rph: {
+          select: {
+            id: true,
+            nama: true
+          }
+        },
+        transaksiPenyembelihan: {
+          select: {
+            id: true,
+            status: true
+          }
+        },
+        transaksiPenjualan: {
+          select: {
+            id: true,
+            pembeliType: true,
+            verificationStatus: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Filter hanya daging yang VERIFIED dan belum dijual
+    const availableDaging = dagingList.filter(d => 
+      d.statusHalal === 'VERIFIED' && 
+      !d.sudahDijual
+    );
+
+    res.status(200).json({
+      success: true,
+      data: availableDaging,
+      total: dagingList.length,
+      available: availableDaging.length
+    });
+  } catch (error) {
+    console.error('Error fetching daging by distributorId:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Gagal mengambil data daging',
+      details: error.message
+    });
+  }
+};

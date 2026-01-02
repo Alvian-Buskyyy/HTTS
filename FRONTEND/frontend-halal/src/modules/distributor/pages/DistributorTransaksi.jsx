@@ -75,9 +75,8 @@ const DistributorTransaksi = () => {
 
         console.log('🔍 Fetching daging for Distributor ID:', distributorId);
 
-        // Use the endpoint: /daging/distributor/:distributorId (you may need to create this)
-        // For now, we'll fetch all daging and filter client-side
-        const response = await fetch(`http://localhost:3000/daging`, {
+        // Use dedicated endpoint for Distributor's daging
+        const response = await fetch(`http://localhost:3000/daging/distributor/${distributorId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -91,15 +90,36 @@ const DistributorTransaksi = () => {
         
         const result = await response.json();
         console.log('✅ Daging data fetched:', result);
+        console.log('📊 [DAGING] Total daging dari API:', result.total);
+        console.log('📊 [DAGING] Jumlah available:', result.available);
+        console.log('📦 [DAGING] Array daging:', result.data);
         
-        // Filter daging owned by this distributor and VERIFIED
-        const filtered = result.filter(d => 
-          d.distributorId === distributorId && 
-          d.statusHalal === 'VERIFIED' &&
-          !d.sudahDijual
-        );
+        // Log detail setiap daging
+        if (result.data && result.data.length > 0) {
+          result.data.forEach((daging, index) => {
+            console.log(`🥩 [DAGING ${index + 1}]:`, {
+              id: daging.id,
+              sapiId: daging.sapiId,
+              beratDaging: daging.beratDaging,
+              beratJeroan: daging.beratJeroan,
+              beratTulang: daging.beratTulang,
+              totalBerat: daging.totalBerat,
+              statusHalal: daging.statusHalal,
+              sudahDijual: daging.sudahDijual,
+              distributorId: daging.distributorId,
+              jagalId: daging.jagalId,
+              rphId: daging.rphId,
+              sapi: daging.sapi,
+              jagal: daging.jagal,
+              rph: daging.rph
+            });
+          });
+        } else {
+          console.warn('⚠️ [DAGING] Tidak ada daging yang tersedia');
+        }
         
-        setAvailableDaging(filtered);
+        // Backend already filters for distributorId, VERIFIED, and !sudahDijual
+        setAvailableDaging(result.data || []);
         
       } catch (error) {
         console.error('❌ Error fetching daging:', error);
@@ -154,6 +174,31 @@ const DistributorTransaksi = () => {
         
         const result = await response.json();
         console.log('✅ Daging transactions fetched:', result);
+        console.log('📊 [TRANSAKSI] Total transaksi:', result.total);
+        console.log('📊 [TRANSAKSI] Outgoing:', result.outgoing);
+        console.log('📊 [TRANSAKSI] Incoming:', result.incoming);
+        console.log('📦 [TRANSAKSI] Array transaksi:', result.data);
+        
+        // Log detail setiap transaksi sebelum enrichment
+        if (result.data && result.data.length > 0) {
+          console.log('🔍 [TRANSAKSI] Detail transaksi SEBELUM enrichment:');
+          result.data.forEach((tx, index) => {
+            console.log(`📝 [TX ${index + 1}]:`, {
+              id: tx.id,
+              direction: tx.direction,
+              penjualType: tx.penjualType,
+              penjualId: tx.penjualId,
+              pembeliType: tx.pembeliType,
+              pembeliId: tx.pembeliId,
+              dagingId: tx.dagingId,
+              sellerName: tx.sellerName,
+              buyerName: tx.buyerName,
+              cid: tx.cid,
+              verificationStatus: tx.verificationStatus,
+              timestamp: tx.timestamp
+            });
+          });
+        }
         
         // Enrich buyer names from entityOptions
         const enrichedData = result.data.map(tx => {
@@ -175,12 +220,30 @@ const DistributorTransaksi = () => {
           };
         });
         
+        // Log setelah enrichment
+        console.log('✨ [TRANSAKSI] Detail transaksi SETELAH enrichment:');
+        enrichedData.forEach((tx, index) => {
+          console.log(`📝 [TX ENRICHED ${index + 1}]:`, {
+            id: tx.id,
+            direction: tx.direction,
+            sellerName: tx.sellerName,
+            buyerName: tx.buyerName,
+            buyerType: tx.pembeliType,
+            verificationStatus: tx.verificationStatus
+          });
+        });
+        
         // Set data and statistics
         setDagingTransactions(enrichedData);
         setDagingStats({
           total: result.total || 0,
           outgoing: result.outgoing || 0,
           incoming: result.incoming || 0
+        });
+        
+        console.log('💾 [STATE] Final state set:', {
+          transactionsCount: enrichedData.length,
+          stats: { total: result.total, outgoing: result.outgoing, incoming: result.incoming }
         });
         
       } catch (error) {
