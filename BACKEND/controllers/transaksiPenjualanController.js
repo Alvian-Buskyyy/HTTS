@@ -787,8 +787,42 @@ exports.confirmBuyer = async (req, res) => {
       }
     }
 
-    // For daging transactions, we don't need to transfer ownership in the daging table
-    // Ownership is tracked through the transaction history
+    // Transfer ownership for daging transactions
+    if (existing.dagingId) {
+      console.log('📦 [DAGING TRANSFER] Transferring daging ownership:', {
+        dagingId: existing.dagingId,
+        fromType: existing.penjualType,
+        fromId: existing.penjualId,
+        toType: existing.pembeliType,
+        toId: existing.pembeliId
+      });
+
+      const dagingUpdateData = {
+        // Clear previous ownership
+        distributorId: null,
+        horekaId: null,
+        endCustomerId: null,
+        sudahDijual: true
+      };
+
+      // Set new ownership based on buyer type
+      if (existing.pembeliType === "DISTRIBUTOR") {
+        dagingUpdateData.distributorId = existing.pembeliId;
+      } else if (existing.pembeliType === "HOREKA") {
+        dagingUpdateData.horekaId = existing.pembeliId;
+      } else if (existing.pembeliType === "END_CUSTOMER") {
+        dagingUpdateData.endCustomerId = existing.pembeliId;
+      } else {
+        console.warn('⚠️ [DAGING TRANSFER] Unsupported buyer type for daging:', existing.pembeliType);
+      }
+
+      await prisma.daging.update({
+        where: { id: existing.dagingId },
+        data: dagingUpdateData,
+      });
+
+      console.log('✅ [DAGING TRANSFER] Daging ownership transferred successfully');
+    }
 
     res.status(200).json({ message: "Verifikasi pembeli berhasil. CID dibuat dan kepemilikan ditransfer.", data: updatedTransaksi, ipfsCid: cid });
   } catch (error) {
@@ -1427,8 +1461,42 @@ exports.verifyTransaksiPenjualan = async (req, res) => {
       }
     }
 
-    // For daging transactions, we don't need to transfer ownership in the daging table
-    // Ownership is tracked through the transaction history
+    // Transfer ownership for daging transactions
+    if (existing.dagingId) {
+      console.log('📦 [DAGING TRANSFER] Transferring daging ownership:', {
+        dagingId: existing.dagingId,
+        fromType: existing.penjualType,
+        fromId: existing.penjualId,
+        toType: existing.pembeliType,
+        toId: existing.pembeliId
+      });
+
+      const dagingUpdateData = {
+        // Clear previous ownership
+        distributorId: null,
+        horekaId: null,
+        endCustomerId: null,
+        sudahDijual: true
+      };
+
+      // Set new ownership based on buyer type
+      if (existing.pembeliType === "DISTRIBUTOR") {
+        dagingUpdateData.distributorId = existing.pembeliId;
+      } else if (existing.pembeliType === "HOREKA") {
+        dagingUpdateData.horekaId = existing.pembeliId;
+      } else if (existing.pembeliType === "END_CUSTOMER") {
+        dagingUpdateData.endCustomerId = existing.pembeliId;
+      } else {
+        console.warn('⚠️ [DAGING TRANSFER] Unsupported buyer type for daging:', existing.pembeliType);
+      }
+
+      await prisma.daging.update({
+        where: { id: existing.dagingId },
+        data: dagingUpdateData,
+      });
+
+      console.log('✅ [DAGING TRANSFER] Daging ownership transferred successfully');
+    }
 
     res.status(200).json({ message: "Verifikasi pembeli berhasil. CID dibuat dan kepemilikan ditransfer.", data: updatedTransaksi, ipfsCid: cid });
   } catch (error) {

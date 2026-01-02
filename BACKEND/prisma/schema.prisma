@@ -168,7 +168,8 @@ model Distributor {
   fasilitasPenyimpanan  String?
   userId                String?    @unique
 
-  profiles               Profile[]
+  daging                Daging[]   // Daging yang dimiliki Distributor
+  profiles              Profile[]
 }
 
 model Horeka {
@@ -179,6 +180,7 @@ model Horeka {
   kondisiProduk String?
   userId        String?    @unique
 
+  daging        Daging[]   // Daging yang dimiliki Horeka
   profiles      Profile[]
 }
 
@@ -189,6 +191,7 @@ model EndCustomer {
   noTelepon String
   userId    String?  @unique
 
+  daging    Daging[] // Daging yang dimiliki End Customer
   profiles  Profile[]
 }
 
@@ -230,6 +233,18 @@ model Daging {
   jagal                  Jagal      @relation(fields: [jagalId], references: [id])
   rphId                  String     // RPH yang melakukan penyembelihan
   rph                    RPH        @relation(fields: [rphId], references: [id])
+  
+  // Tracking kepemilikan saat ini (nullable karena awalnya milik Jagal)
+  distributorId          String?    // Distributor pemilik saat ini
+  distributor            Distributor? @relation(fields: [distributorId], references: [id])
+  
+  horekaId               String?    // Horeka pemilik saat ini
+  horeka                 Horeka?    @relation(fields: [horekaId], references: [id])
+  
+  endCustomerId          String?    // End Customer pemilik saat ini
+  endCustomer            EndCustomer? @relation(fields: [endCustomerId], references: [id])
+  
+  sudahDijual            Boolean    @default(false) // Flag apakah sudah dijual
   
   // Detail paket daging
   beratDaging            Float      // Berat daging (kg)
