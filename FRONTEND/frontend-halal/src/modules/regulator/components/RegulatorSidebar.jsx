@@ -44,6 +44,12 @@ const RegulatorSidebar = () => (
         <NavLink to="/regulator/items" icon="fas fa-list-check" label="Master Item" />
       </li>
       <li>
+        <NavLink to="/regulator/checklist" icon="fas fa-clipboard-check" label="Checklist Halal" />
+      </li>
+      <li>
+        <NavLink to="/regulator/verifikasi-halal" icon="fas fa-shield-halved" label="Verifikasi Halal" />
+      </li>
+      <li>
         <NavLink to="/regulator/qr" icon="fas fa-qrcode" label="QR Records" />
       </li>
     </ul>

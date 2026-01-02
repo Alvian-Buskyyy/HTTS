@@ -485,11 +485,9 @@ exports.createTransaksiPenjualan = async (req, res) => {
       const daging = await prisma.daging.findUnique({
         where: { id: dagingId },
         include: {
-          sapi: {
-            include: {
-              jagal: true,
-            },
-          },
+          sapi: true,
+          jagal: true,
+          rph: true,
         },
       });
       if (!daging) {
@@ -498,7 +496,7 @@ exports.createTransaksiPenjualan = async (req, res) => {
 
       // Validate ownership of daging (only JAGAL and RPH can own daging)
       let isOwner = false;
-      if (penjualType === "JAGAL" && daging.sapi.jagalId === penjualId) {
+      if (penjualType === "JAGAL" && daging.jagalId === penjualId) {
         isOwner = true;
       } else if (penjualType === "RPH") {
         // RPH can sell daging if they processed it
@@ -642,16 +640,54 @@ exports.requestVerification = async (req, res) => {
 exports.confirmBuyer = async (req, res) => {
   const { id } = req.params;
   const { code } = req.body;
+  
+  console.log('🔍 [BACKEND VERIFY] Received confirmation request:', {
+    transactionId: id,
+    receivedCode: code,
+    codeType: typeof code,
+    codeLength: code ? code.length : 0
+  });
+  
   try {
     const existing = await prisma.transaksiPenjualan.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: `Transaksi Penjualan dengan ID ${id} tidak ditemukan` });
+    
+    if (!existing) {
+      console.error('❌ [BACKEND VERIFY] Transaction not found:', id);
+      return res.status(404).json({ error: `Transaksi Penjualan dengan ID ${id} tidak ditemukan` });
+    }
+    
+    console.log('📋 [BACKEND VERIFY] Transaction found:', {
+      id: existing.id,
+      verificationCode: existing.verificationCode,
+      codeType: typeof existing.verificationCode,
+      codeLength: existing.verificationCode ? existing.verificationCode.length : 0,
+      verificationStatus: existing.verificationStatus,
+      type: existing.type
+    });
+    
     if (existing.verificationStatus === "REJECTED") {
+      console.error('❌ [BACKEND VERIFY] Transaction already rejected');
       return res.status(400).json({ error: "Transaksi telah ditolak" });
     }
+    
     const expected = existing.verificationCode || "";
-    if (!code || code !== expected) {
+    const receivedCode = (code || "").trim();
+    
+    console.log('🔐 [BACKEND VERIFY] Code comparison:', {
+      received: receivedCode,
+      expected: expected,
+      match: receivedCode === expected,
+      receivedLength: receivedCode.length,
+      expectedLength: expected.length
+    });
+    
+    if (!receivedCode || receivedCode !== expected) {
+      console.error('❌ [BACKEND VERIFY] Code mismatch!');
       return res.status(400).json({ error: "Kode verifikasi tidak cocok" });
     }
+    
+    console.log('✅ [BACKEND VERIFY] Code matched! Proceeding with verification...');
+
 
     // Prepare transaction data for IPFS
     const timestamp = new Date();
@@ -1507,6 +1543,196 @@ exports.debugJagalIds = async (req, res) => {
       count: jagals.length,
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all transactions for a specific Jagal (both incoming and outgoing)
+exports.getJagalTransactions = async (req, res) => {
+  const { jagalId } = req.params;
+
+  try {
+    // Validate Jagal exists
+    const jagal = await prisma.jagal.findUnique({
+      where: { id: jagalId },
+      select: { id: true, nama: true },
+    });
+
+    if (!jagal) {
+      return res.status(404).json({ error: `Jagal dengan ID ${jagalId} tidak ditemukan` });
+    }
+
+    // Get all transactions where Jagal is either seller or buyer
+    const transactions = await prisma.transaksiPenjualan.findMany({
+      where: {
+        OR: [
+          { penjualType: 'JAGAL', penjualId: jagalId },
+          { pembeliType: 'JAGAL', pembeliId: jagalId },
+        ],
+      },
+      include: {
+        sapi: {
+          include: {
+            peternak: true,
+            pasarHewan: true,
+            jagal: true,
+          },
+        },
+        daging: {
+          include: {
+            sapi: true,
+            jagal: true,
+            rph: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    });
+
+    // Enrich data with entity information
+    const enrichedTransactions = await Promise.all(
+      transactions.map(async (tx) => {
+        let sellerName = '';
+        let buyerName = '';
+
+        // Get seller name
+        try {
+          const seller = await prisma[tx.penjualType.toLowerCase()].findUnique({
+            where: { id: tx.penjualId },
+            select: { nama: true },
+          });
+          sellerName = seller?.nama || tx.penjualId;
+        } catch (e) {
+          sellerName = tx.penjualId;
+        }
+
+        // Get buyer name
+        try {
+          const buyer = await prisma[tx.pembeliType.toLowerCase()].findUnique({
+            where: { id: tx.pembeliId },
+            select: { nama: true },
+          });
+          buyerName = buyer?.nama || tx.pembeliId;
+        } catch (e) {
+          buyerName = tx.pembeliId;
+        }
+
+        return {
+          ...tx,
+          sellerName,
+          buyerName,
+          direction: tx.penjualId === jagalId ? 'outgoing' : 'incoming',
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: 'Transaksi Jagal berhasil diambil',
+      jagal: jagal,
+      total: enrichedTransactions.length,
+      outgoing: enrichedTransactions.filter(t => t.direction === 'outgoing').length,
+      incoming: enrichedTransactions.filter(t => t.direction === 'incoming').length,
+      data: enrichedTransactions,
+    });
+  } catch (error) {
+    console.error('Error getting Jagal transactions:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all transactions for a specific Distributor (both incoming and outgoing)
+exports.getDistributorTransactions = async (req, res) => {
+  const { distributorId } = req.params;
+
+  try {
+    // Validate Distributor exists
+    const distributor = await prisma.distributor.findUnique({
+      where: { id: distributorId },
+      select: { id: true, namaUsaha: true },
+    });
+
+    if (!distributor) {
+      return res.status(404).json({ error: `Distributor dengan ID ${distributorId} tidak ditemukan` });
+    }
+
+    // Get all transactions where Distributor is either seller or buyer
+    const transactions = await prisma.transaksiPenjualan.findMany({
+      where: {
+        OR: [
+          { penjualType: 'DISTRIBUTOR', penjualId: distributorId },
+          { pembeliType: 'DISTRIBUTOR', pembeliId: distributorId },
+        ],
+      },
+      include: {
+        sapi: {
+          include: {
+            peternak: true,
+            pasarHewan: true,
+            jagal: true,
+          },
+        },
+        daging: {
+          include: {
+            sapi: true,
+            jagal: true,
+            rph: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    });
+
+    // Enrich data with entity information
+    const enrichedTransactions = await Promise.all(
+      transactions.map(async (tx) => {
+        let sellerName = '';
+        let buyerName = '';
+
+        // Get seller name
+        try {
+          const sellerModel = tx.penjualType === 'DISTRIBUTOR' ? 'distributor' : tx.penjualType.toLowerCase();
+          const seller = await prisma[sellerModel].findUnique({
+            where: { id: tx.penjualId },
+          });
+          sellerName = seller?.nama || seller?.namaUsaha || tx.penjualId;
+        } catch (e) {
+          sellerName = tx.penjualId;
+        }
+
+        // Get buyer name
+        try {
+          const buyerModel = tx.pembeliType === 'DISTRIBUTOR' ? 'distributor' : tx.pembeliType.toLowerCase();
+          const buyer = await prisma[buyerModel].findUnique({
+            where: { id: tx.pembeliId },
+          });
+          buyerName = buyer?.nama || buyer?.namaUsaha || tx.pembeliId;
+        } catch (e) {
+          buyerName = tx.pembeliId;
+        }
+
+        return {
+          ...tx,
+          sellerName,
+          buyerName,
+          direction: tx.penjualId === distributorId ? 'outgoing' : 'incoming',
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: 'Transaksi Distributor berhasil diambil',
+      distributor: distributor,
+      total: enrichedTransactions.length,
+      outgoing: enrichedTransactions.filter(t => t.direction === 'outgoing').length,
+      incoming: enrichedTransactions.filter(t => t.direction === 'incoming').length,
+      data: enrichedTransactions,
+    });
+  } catch (error) {
+    console.error('Error getting Distributor transactions:', error);
     res.status(500).json({ error: error.message });
   }
 };

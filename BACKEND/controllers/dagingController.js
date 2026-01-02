@@ -3,7 +3,19 @@ const prisma = new PrismaClient();
 
 exports.getAllDaging = async (req, res) => {
   try {
-    const daging = await prisma.daging.findMany();
+    const daging = await prisma.daging.findMany({
+      include: {
+        sapi: true,
+        jagal: true,
+        rph: true,
+        transaksiPenyembelihan: true,
+        transaksiPenjualan: true,
+        qr: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
     res.status(200).json(daging);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -15,6 +27,22 @@ exports.getDagingById = async (req, res) => {
   try {
     const daging = await prisma.daging.findUnique({
       where: { id },
+      include: {
+        sapi: true,
+        jagal: true,
+        rph: true,
+        transaksiPenyembelihan: {
+          include: {
+            checklist: {
+              include: {
+                itemChecklist: true,
+              },
+            },
+          },
+        },
+        transaksiPenjualan: true,
+        qr: true,
+      },
     });
     if (daging) {
       res.status(200).json(daging);
@@ -61,5 +89,70 @@ exports.deleteDaging = async (req, res) => {
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getDagingByJagalId = async (req, res) => {
+  try {
+    const { jagalId } = req.params;
+    
+    const dagingList = await prisma.daging.findMany({
+      where: {
+        jagalId: jagalId
+      },
+      include: {
+        sapi: {
+          select: {
+            id: true,
+            jenis: true,
+            beratSapi: true,
+            usia: true,
+            kelamin: true
+          }
+        },
+        rph: {
+          select: {
+            id: true,
+            nama: true
+          }
+        },
+        transaksiPenyembelihan: {
+          select: {
+            id: true,
+            status: true
+          }
+        },
+        transaksiPenjualan: {
+          select: {
+            id: true,
+            pembeliType: true,
+            verificationStatus: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Filter hanya daging yang VERIFIED dan belum dijual
+    const availableDaging = dagingList.filter(d => 
+      d.statusHalal === 'VERIFIED' && 
+      (!d.transaksiPenjualan || d.transaksiPenjualan.length === 0)
+    );
+
+    res.status(200).json({
+      success: true,
+      data: availableDaging,
+      total: dagingList.length,
+      available: availableDaging.length
+    });
+  } catch (error) {
+    console.error('Error fetching daging by jagalId:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Gagal mengambil data daging',
+      details: error.message
+    });
   }
 };

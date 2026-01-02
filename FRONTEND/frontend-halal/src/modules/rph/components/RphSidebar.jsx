@@ -21,6 +21,12 @@ const RphSidebar = () => {
           </Link>
         </li>
         <li>
+          <Link to="/rph/proses-penyembelihan" className={`flex items-center p-2 rounded-lg text-gray-800 hover:bg-primaryLight hover:text-primary border-r-4 ${isActive('/rph/proses-penyembelihan') ? 'bg-primary/10 text-primary border-primary' : 'border-transparent'}`}>
+            <i className="fas fa-clipboard-check mr-3"></i>
+            <span>Proses Penyembelihan</span>
+          </Link>
+        </li>
+        <li>
           <Link to="/rph/operasi" className={`flex items-center p-2 rounded-lg text-gray-800 hover:bg-primaryLight hover:text-primary border-r-4 ${isActive('/rph/operasi') ? 'bg-primary/10 text-primary border-primary' : 'border-transparent'}`}>
             <i className="fas fa-cut mr-3"></i>
             <span>Operasi Pemotongan</span>

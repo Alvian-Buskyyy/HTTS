@@ -34,7 +34,9 @@ import PasarHewanSettings from "./modules/pasarHewan/pages/PasarHewanSettings";
 // Jagal pages
 import JagalDashboard from "./modules/jagal/pages/JagalDashboard";
 import JagalSapi from "./modules/jagal/pages/JagalSapi";
+import JagalDaging from "./modules/jagal/pages/JagalDaging";
 import JagalTransaksi from "./modules/jagal/pages/JagalTransaksi";
+import JagalTransaksiPenyembelihan from "./modules/jagal/pages/JagalTransaksiPenyembelihan";
 import JagalHealth from "./modules/jagal/pages/JagalHealth";
 import JagalProfil from "./modules/jagal/pages/JagalProfil";
 import JagalSettings from "./modules/jagal/pages/JagalSettings";
@@ -49,6 +51,7 @@ import RphOperasi from "./modules/rph/pages/RphOperasi";
 import RphVerifikasiSehat from "./modules/rph/pages/RphVerifikasiSehat";
 import RphVerifikasiHalal from "./modules/rph/pages/RphVerifikasiHalal";
 import RphTransaksi from "./modules/rph/pages/RphTransaksi";
+import RphProsesPenyembelihan from "./modules/rph/pages/RphProsesPenyembelihan";
 
 // Distributor pages (adopsi struktur RPH)
 import DistributorDashboard from "./modules/distributor/pages/DistributorDashboard";
@@ -67,9 +70,11 @@ import RegulatorSapi from "./modules/regulator/pages/RegulatorSapi";
 import RegulatorDaging from "./modules/regulator/pages/RegulatorDaging";
 import RegulatorTransaksi from "./modules/regulator/pages/RegulatorTransaksi";
 import RegulatorItems from "./modules/regulator/pages/RegulatorItems";
+import RegulatorChecklist from "./modules/regulator/pages/RegulatorChecklist";
 import RegulatorQR from "./modules/regulator/pages/RegulatorQR";
 import RegulatorProfile from "./modules/regulator/pages/RegulatorProfile";
 import RegulatorSettings from "./modules/regulator/pages/RegulatorSettings";
+import RegulatorVerifikasiHalal from "./modules/regulator/pages/RegulatorVerifikasiHalal";
 
 function App() {
   // State untuk menyimpan status autentikasi dan user info
@@ -520,6 +525,14 @@ function App() {
           }
         />
         <Route
+          path="/regulator/checklist"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "REGULATOR"]}>
+              <RegulatorChecklist />
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/regulator/qr"
           element={
             <PrivateRoute allowedRoles={["ADMIN", "REGULATOR"]}>
@@ -532,6 +545,14 @@ function App() {
           element={
             <PrivateRoute allowedRoles={["ADMIN", "REGULATOR"]}>
               <RegulatorProfile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/regulator/verifikasi-halal"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "REGULATOR"]}>
+              <RegulatorVerifikasiHalal />
             </PrivateRoute>
           }
         />
@@ -582,6 +603,22 @@ function App() {
           element={
             <PrivateRoute allowedRoles={["ADMIN", "JAGAL"]}>
               <JagalTransaksi />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/jagal/penyembelihan"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "JAGAL"]}>
+              <JagalTransaksiPenyembelihan />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/jagal/daging"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "JAGAL"]}>
+              <JagalDaging />
             </PrivateRoute>
           }
         />
@@ -660,10 +697,26 @@ function App() {
           }
         />
         <Route
+          path="/rph/proses-penyembelihan"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "RPH"]}>
+              <RphProsesPenyembelihan />
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/rph/transaksi"
           element={
             <PrivateRoute allowedRoles={["ADMIN", "RPH"]}>
               <RphTransaksi />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/rph/proses-penyembelihan"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "RPH"]}>
+              <RphProsesPenyembelihan />
             </PrivateRoute>
           }
         />

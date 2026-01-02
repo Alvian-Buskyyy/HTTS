@@ -91,8 +91,11 @@ model Regulator {
   instansi String
   jabatan  String
   userId   String?  @unique
+  rphId    String   // Relasi dengan RPH yang dipantau
 
-  profiles Profile[]
+  rphs              RPH[]                @relation("RegulatorRPH")  // Daftar RPH yang dipantau oleh regulator
+  profiles          Profile[]            // Profil yang terkait dengan Regulator
+  itemChecklistHalal ItemChecklistHalal[] // Checklist yang dibuat oleh Regulator
 }
 
 model Peternak {
@@ -148,9 +151,12 @@ model RPH {
   jumlahPenyelia         Int        @default(0)
   userId                 String?    @unique
 
-  daging                 Daging[]
-  transaksiPenyembelihan TransaksiPenyembelihan[]
-  profiles               Profile[]
+  regulatorId            String?    // Relasi ke Regulator
+  regulator              Regulator? @relation("RegulatorRPH", fields: [regulatorId], references: [id])
+
+  daging                 Daging[]  // Daftar daging yang diproses oleh RPH
+  transaksiPenyembelihan TransaksiPenyembelihan[]  // Transaksi penyembelihan di RPH
+  profiles               Profile[]  // Profil yang terkait dengan RPH
 }
 
 model Distributor {
@@ -232,8 +238,7 @@ model Daging {
   totalBerat             Float      // Total berat paket
   
   // Relasi ke transaksi penyembelihan
-  transaksiPenyembelihanId String   @unique
-  transaksiPenyembelihan TransaksiPenyembelihan @relation(fields: [transaksiPenyembelihanId], references: [id])
+  transaksiPenyembelihan TransaksiPenyembelihan?
   
   // Verifikasi bersama Jagal dan Regulator
   verifikasiJagal        Boolean    @default(false)
@@ -251,6 +256,47 @@ model Daging {
   qr                     QR[]
 }
 
+// Model untuk menyimpan item checklist halal yang dibuat oleh Regulator
+model ItemChecklistHalal {
+  id          String   @id @default(uuid())
+  pertanyaan  String   // Pertanyaan checklist
+  tipe        String   // "PRA_PENYEMBELIHAN" atau "PASCA_PENYEMBELIHAN"
+  kategori    String?  // Kategori pertanyaan (opsional)
+  urutan      Int      @default(0) // Urutan tampilan
+  isAktif     Boolean  @default(true) // Apakah item ini aktif
+  
+  regulatorId String?  // Regulator yang membuat item ini
+  regulator   Regulator? @relation(fields: [regulatorId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relasi ke jawaban checklist
+  jawaban     ChecklistPenyembelihan[]
+}
+
+// Model untuk jawaban checklist per transaksi penyembelihan
+model ChecklistPenyembelihan {
+  id                         String   @id @default(uuid())
+  
+  transaksiPenyembelihanId   String
+  transaksiPenyembelihan     TransaksiPenyembelihan @relation(fields: [transaksiPenyembelihanId], references: [id], onDelete: Cascade)
+  
+  itemChecklistId            String
+  itemChecklist              ItemChecklistHalal @relation(fields: [itemChecklistId], references: [id])
+  
+  isChecked                  Boolean  @default(false) // Apakah item ini sudah dicek
+  catatan                    String?  // Catatan tambahan dari RPH
+  
+  checkedBy                  String?  // User ID yang melakukan checklist
+  checkedAt                  DateTime? // Waktu pengecekan
+  
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  
+  @@unique([transaksiPenyembelihanId, itemChecklistId])
+}
+
 model TransaksiPenyembelihan {
   id              String     @id @default(uuid())
   
@@ -265,14 +311,30 @@ model TransaksiPenyembelihan {
   sapiId          String
   sapi            Sapi       @relation(fields: [sapiId], references: [id])
   
-  // Status transaksi
-  status          String     @default("PENDING") // PENDING, PROCESSED, COMPLETED
+  // Status transaksi dengan flow yang lebih detail
+  status          String     @default("PENDING_RPH") 
+  // Status flow:
+  // - PENDING_RPH: Menunggu RPH menerima
+  // - CHECKLIST_PRA: RPH sedang mengisi checklist pra-penyembelihan
+  // - READY_TO_SLAUGHTER: Checklist pra lolos, siap disembelih
+  // - SLAUGHTERING: Sedang proses penyembelihan
+  // - CHECKLIST_PASCA: Mengisi checklist pasca-penyembelihan
+  // - PENDING_INPUT_HASIL: Checklist pasca lolos, menunggu input berat
+  // - PENDING_JAGAL_VERIFICATION: Menunggu verifikasi Jagal
+  // - PENDING_REGULATOR_VERIFICATION: Menunggu verifikasi Regulator
+  // - VERIFIED: Terverifikasi lengkap
+  // - REJECTED: Ditolak
   
-  // Tanggal pendaftaran oleh Jagal
-  tanggalPendaftaran DateTime @default(now())
+  // Tanggal milestone
+  tanggalPendaftaran     DateTime @default(now())
+  tanggalChecklistPra    DateTime? // Kapan checklist pra selesai
+  tanggalPenyembelihan   DateTime? // Kapan proses penyembelihan
+  tanggalChecklistPasca  DateTime? // Kapan checklist pasca selesai
+  tanggalInputHasil      DateTime? // Kapan RPH input hasil
   
-  // Tanggal pemrosesan oleh RPH (ketika RPH input hasil penyembelihan)
-  tanggalPemrosesan  DateTime?
+  // Hasil checklist
+  checklistPraLengkap    Boolean  @default(false)
+  checklistPascaLengkap  Boolean  @default(false)
   
   // Data hasil penyembelihan (diisi oleh RPH)
   beratDaging     Float?
@@ -280,12 +342,22 @@ model TransaksiPenyembelihan {
   beratTulang     Float?
   totalBerat      Float?
   
-  // IPFS dan tracking
+  // Verification tracking
+  verificationCode    String?
+  jagalVerifiedAt     DateTime?
+  regulatorVerifiedAt DateTime?
+  processedAt         DateTime?
+  
+  // IPFS and tracking
   timestamp       DateTime   @default(now())
-  cid             String
+  cid             String?
   
   // Relasi ke daging (dibuat setelah pemrosesan)
-  daging          Daging?
+  dagingId        String?    @unique
+  daging          Daging?    @relation(fields: [dagingId], references: [id])
+  
+  // Relasi ke checklist
+  checklist       ChecklistPenyembelihan[]
 }
 
 model TransaksiPenjualan {

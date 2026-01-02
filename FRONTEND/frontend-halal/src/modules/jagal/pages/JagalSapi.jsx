@@ -30,39 +30,37 @@ const JagalSapi = () => {
           jagalId = u?.entityId || u?.id || '';
         } catch {}
 
+        if (!jagalId) {
+          console.error('Jagal ID tidak ditemukan');
+          setCattle([]);
+          setLoading(false);
+          return;
+        }
+
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        const [transRes, sapiRes] = await Promise.all([
-          fetch('http://localhost:3000/transaksiPenjualan', { headers }),
-          fetch('http://localhost:3000/sapi', { headers })
-        ]);
+        // Gunakan endpoint getSapiByEntity dari sapiRoutes
+        const sapiRes = await fetch(`http://localhost:3000/sapi/entity/JAGAL/${jagalId}`, { headers });
 
-        const transaksiAll = await transRes.json();
-        const sapiAll = await sapiRes.json();
+        if (!sapiRes.ok) {
+          throw new Error('Gagal memuat data sapi dari server');
+        }
 
-        const pembelianJagal = Array.isArray(transaksiAll)
-          ? transaksiAll.filter(t => String(t.pembeliType) === 'JAGAL' && t.sapiId)
-          : [];
+        const sapiData = await sapiRes.json();
 
-        const sapiMap = new Map(Array.isArray(sapiAll) ? sapiAll.map(s => [s.id, s]) : []);
-
-        const data = pembelianJagal.map(t => {
-          const s = sapiMap.get(t.sapiId) || {};
-          const verif = String(t.verificationStatus || '').toUpperCase();
-          return {
-            id: t.sapiId,
-            type: s.jenis || 'Sapi',
-            gender: s.kelamin || '-',
-            weight: Number(s.beratSapi) || 0,
-            healthStatus: 'sehat',
-            availability: verif === 'VERIFIED' ? 'available' : 'in_transaction',
-            age: Number(s.usia) || 0,
-            birthDate: s.tanggalLahir || '',
-            origin: 'beli',
-            motherId: '',
-            fatherId: ''
-          };
-        });
+        const data = Array.isArray(sapiData) ? sapiData.map(s => ({
+          id: s.id,
+          type: s.jenis || 'Sapi',
+          gender: s.kelamin || '-',
+          weight: Number(s.beratSapi) || 0,
+          healthStatus: 'sehat',
+          availability: s.isProcessed ? 'sold' : 'available',
+          age: Number(s.usia) || 0,
+          birthDate: s.tanggalLahir || '',
+          origin: s.asalType === 'JAGAL' ? 'lahir_sendiri' : 'beli',
+          motherId: '',
+          fatherId: ''
+        })) : [];
 
         // Merge dengan data lokal hasil pendaftaran (localStorage)
         let localItems = [];

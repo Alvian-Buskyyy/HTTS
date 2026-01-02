@@ -193,14 +193,32 @@ exports.signup = async (req, res) => {
           break;
 
         case 'REGULATOR':
+          // Validasi rphId wajib untuk Regulator
+          if (!profileData.rphId) {
+            throw new Error('RPH yang dipantau wajib dipilih untuk Regulator');
+          }
+          
+          // Validasi RPH exists
+          const rphExists = await tx.rPH.findUnique({
+            where: { id: profileData.rphId },
+          });
+          
+          if (!rphExists) {
+            throw new Error('RPH yang dipilih tidak ditemukan');
+          }
+          
           entityData = await tx.regulator.create({
             data: {
-              nama: baseEntityData.nama,
-              instansi: req.body.instansi || '',
-              jabatan: req.body.jabatan || '',
+              nama: profileData.nama || baseEntityData.nama,
+              instansi: profileData.instansi || '',
+              jabatan: profileData.jabatan || '',
+              rphId: profileData.rphId, // Required field
               userId: newUser.id,
             },
           });
+          
+          // Note: Profile untuk Regulator tidak dibuat karena EntityType enum tidak support REGULATOR
+          // Regulator sudah punya userId di table sendiri
           break;
 
         default:

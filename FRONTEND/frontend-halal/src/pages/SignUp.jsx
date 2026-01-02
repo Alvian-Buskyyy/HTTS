@@ -28,6 +28,7 @@ const SignUp = () => {
   });
   
   const [dynamicFields, setDynamicFields] = useState({});
+  const [rphList, setRphList] = useState([]); // Untuk dropdown RPH (Regulator)
   
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -49,8 +50,25 @@ const SignUp = () => {
   useEffect(() => {
     if (!formData.role) {
       setDynamicFields({});
+      setRphList([]);
+    } else if (formData.role === 'REGULATOR') {
+      // Fetch daftar RPH untuk dropdown
+      fetchRPHList();
     }
   }, [formData.role]);
+  
+  // Fetch daftar RPH
+  const fetchRPHList = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/rph');
+      if (response.ok) {
+        const data = await response.json();
+        setRphList(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching RPH list:', error);
+    }
+  };
   
   const handleSubmit = async (e) => {
   e.preventDefault();
@@ -396,31 +414,55 @@ const SignUp = () => {
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Nama</label>
+              <label className="block text-sm font-medium text-gray-700">Nama *</label>
               <input 
                 type="text" 
                 name="nama" 
+                required
                 onChange={handleDynamicFieldChange} 
                 className="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Instansi</label>
+              <label className="block text-sm font-medium text-gray-700">Instansi *</label>
               <input 
                 type="text" 
                 name="instansi" 
+                required
                 onChange={handleDynamicFieldChange} 
                 className="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Jabatan</label>
+              <label className="block text-sm font-medium text-gray-700">Jabatan *</label>
               <input 
                 type="text" 
                 name="jabatan" 
+                required
                 onChange={handleDynamicFieldChange} 
                 className="mt-1 focus:ring-primary focus:border-primary block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 border"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">RPH yang Dipantau *</label>
+              <select 
+                name="rphId" 
+                required
+                onChange={handleDynamicFieldChange}
+                className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary hover:border-primary sm:text-sm"
+              >
+                <option value="">Pilih RPH</option>
+                {rphList.map(rph => (
+                  <option key={rph.id} value={rph.id}>
+                    {rph.nama} - {rph.alamat}
+                  </option>
+                ))}
+              </select>
+              {rphList.length === 0 && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Memuat daftar RPH...
+                </p>
+              )}
             </div>
           </>
         );
