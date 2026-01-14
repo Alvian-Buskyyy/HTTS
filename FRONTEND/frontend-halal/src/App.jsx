@@ -55,7 +55,7 @@ import RphProsesPenyembelihan from "./modules/rph/pages/RphProsesPenyembelihan";
 
 // Distributor pages (adopsi struktur RPH)
 import DistributorDashboard from "./modules/distributor/pages/DistributorDashboard";
-import DistributorTransaksi from "./modules/distributor/pages/DistributorTransaksi";
+import DistributorTransaksi from "./modules/distributor/pages/DistributorTransaksiDaging";
 import DistributorProfil from "./modules/distributor/pages/DistributorProfil";
 import DistributorSettings from "./modules/distributor/pages/DistributorSettings";
 

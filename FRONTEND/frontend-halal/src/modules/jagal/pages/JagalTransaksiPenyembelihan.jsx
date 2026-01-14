@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import JagalSidebar from '../components/JagalSidebar';
+
+import { useSlaughterData } from '../hooks/useSlaughterData';
+
 
 const JagalTransaksiPenyembelihan = () => {
   const [slaughterForm, setSlaughterForm] = useState({ rphId: '', sapiId: '' });
   const [slaughterSuccess, setSlaughterSuccess] = useState(false);
-  const [sapiJagal, setSapiJagal] = useState([]);
-  const [rphOptions, setRphOptions] = useState([]);
-  const [dagingPending, setDagingPending] = useState([]);
-  const [riwayatPenyembelihan, setRiwayatPenyembelihan] = useState([]);
-  
+
+  // Use slaughter data hook
+  const {
+    sapiJagal,
+    setSapiJagal,
+    rphOptions,
+    setRphOptions,
+    dagingPending,
+    setDagingPending,
+    riwayatPenyembelihan,
+    setRiwayatPenyembelihan,
+    isLoading,
+    error,
+    refreshData,
+  } = useSlaughterData();
+
   // Verification Modal State
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyingDaging, setVerifyingDaging] = useState(null);
@@ -18,43 +32,9 @@ const JagalTransaksiPenyembelihan = () => {
   const [verifyError, setVerifyError] = useState('');
   const [verifySuccess, setVerifySuccess] = useState('');
 
-  useEffect(() => {
-    const API_BASE = 'http://localhost:3000';
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const fetchPenyembelihanData = async () => {
-      try {
-        const sapiRes = await fetch(`${API_BASE}/transaksiPenyembelihan/jagal/sapi`, { headers });
-        if (sapiRes.ok) {
-          const sapiData = await sapiRes.json();
-          setSapiJagal(sapiData.data || []);
-        }
-        const rphRes = await fetch(`${API_BASE}/transaksiPenyembelihan/jagal/rph`, { headers });
-        if (rphRes.ok) {
-          const rphData = await rphRes.json();
-          setRphOptions(rphData.data || []);
-        }
-        const dagingRes = await fetch(`${API_BASE}/transaksiPenyembelihan/jagal/daging-pending`, { headers });
-        if (dagingRes.ok) {
-          const dagingData = await dagingRes.json();
-          setDagingPending(dagingData.data || []);
-        }
-        const riwayatRes = await fetch(`${API_BASE}/transaksiPenyembelihan/riwayat`, { headers });
-        if (riwayatRes.ok) {
-          const riwayatData = await riwayatRes.json();
-          setRiwayatPenyembelihan(riwayatData.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching penyembelihan data:', error);
-      }
-    };
-    fetchPenyembelihanData();
-  }, []);
-
   const handleSlaughterSubmit = async (e) => {
     e.preventDefault();
+    console.log('submitting slaughter form:', slaughterForm);
     if (!slaughterForm.rphId || !slaughterForm.sapiId) {
       alert('Mohon pilih RPH dan Sapi.');
       return;
@@ -73,16 +53,7 @@ const JagalTransaksiPenyembelihan = () => {
       setSlaughterSuccess(true);
       setTimeout(() => setSlaughterSuccess(false), 3000);
       setSlaughterForm({ rphId: '', sapiId: '' });
-      const sapiRes = await fetch(`${API_BASE}/transaksiPenyembelihan/jagal/sapi`, { headers });
-      if (sapiRes.ok) {
-        const sapiData = await sapiRes.json();
-        setSapiJagal(sapiData.data || []);
-      }
-      const riwayatRes = await fetch(`${API_BASE}/transaksiPenyembelihan/riwayat`, { headers });
-      if (riwayatRes.ok) {
-        const riwayatData = await riwayatRes.json();
-        setRiwayatPenyembelihan(riwayatData.data || []);
-      }
+      await refreshData();
       alert('Sapi berhasil didaftarkan untuk penyembelihan di RPH!');
     } catch (error) {
       console.error('Error submitting slaughter:', error);
@@ -198,7 +169,17 @@ const JagalTransaksiPenyembelihan = () => {
           <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2"><i className="fas fa-cut text-primary"></i> Transaksi Penyembelihan</h2>
           <p className="text-sm text-gray-500">Daftarkan sapi untuk disembelih di RPH</p>
         </div>
+      </div>
+      {isLoading && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded text-sm">
+          <i className="fas fa-spinner fa-spin mr-1"></i> Memuat data penyembelihan...
         </div>
+      )}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
+          <i className="fas fa-exclamation-circle mr-1"></i> {error}
+        </div>
+      )}
       {slaughterSuccess && (
         <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
           <i className="fas fa-check-circle mr-1"></i> Sapi berhasil didaftarkan untuk penyembelihan!
@@ -211,7 +192,7 @@ const JagalTransaksiPenyembelihan = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">RPH *</label>
             <select value={slaughterForm.rphId} onChange={e=>setSlaughterForm({...slaughterForm, rphId:e.target.value})} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" required>
               <option value="">Pilih RPH</option>
-              {rphOptions.map(r => (<option key={r.id} value={r.id}>{r.nama}</option>))}
+              {rphOptions.map(r => (<option key={r.id} value={r.id}>{r.nama || r.id}</option>))}
             </select>
           </div>
           <div>
@@ -317,7 +298,13 @@ const JagalTransaksiPenyembelihan = () => {
               ) : (
                 riwayatPenyembelihan.map(item => (
                   <tr key={item.id}>
-                    <td className="px-6 py-4 text-sm text-gray-800">{new Date(item.createdAt).toLocaleDateString('id-ID')}</td>
+                    <td className="px-6 py-4 text-sm text-gray-800">{
+                      (() => {
+                        // Ambil hanya sebelum 'T' pakai regex
+                        const match = item.tanggalPendaftaran?.match(/^([0-9]{4}-[0-9]{2}-[0-9]{2})/);
+                        return match ? match[1] : '-';
+                      })()
+                    }</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{item.rph?.nama || '-'}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{item.sapi?.jenis || '-'}</td>
                     <td className="px-6 py-4 text-sm">

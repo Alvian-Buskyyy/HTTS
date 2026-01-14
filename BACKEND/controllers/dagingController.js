@@ -98,7 +98,14 @@ exports.getDagingByJagalId = async (req, res) => {
     
     const dagingList = await prisma.daging.findMany({
       where: {
-        jagalId: jagalId
+        jagalId: jagalId,
+        // Filter langsung di query untuk performa lebih baik
+        statusHalal: 'VERIFIED',
+        sudahDijual: false,
+        // Pastikan masih milik Jagal (belum dipindah ke distributor/horeka/customer)
+        distributorId: null,
+        horekaId: null,
+        endCustomerId: null
       },
       include: {
         sapi: {
@@ -119,14 +126,8 @@ exports.getDagingByJagalId = async (req, res) => {
         transaksiPenyembelihan: {
           select: {
             id: true,
-            status: true
-          }
-        },
-        transaksiPenjualan: {
-          select: {
-            id: true,
-            pembeliType: true,
-            verificationStatus: true
+            status: true,
+            tanggalPenyembelihan: true
           }
         }
       },
@@ -135,17 +136,11 @@ exports.getDagingByJagalId = async (req, res) => {
       }
     });
 
-    // Filter hanya daging yang VERIFIED dan belum dijual
-    const availableDaging = dagingList.filter(d => 
-      d.statusHalal === 'VERIFIED' && 
-      (!d.transaksiPenjualan || d.transaksiPenjualan.length === 0)
-    );
-
     res.status(200).json({
       success: true,
-      data: availableDaging,
+      data: dagingList,
       total: dagingList.length,
-      available: availableDaging.length
+      message: `Daging yang tersedia untuk dijual oleh Jagal`
     });
   } catch (error) {
     console.error('Error fetching daging by jagalId:', error);

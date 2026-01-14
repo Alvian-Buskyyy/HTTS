@@ -43,8 +43,8 @@ const RegulatorVerifikasiHalal = () => {
     }
   };
 
-  const handleVerifikasiHalal = async (daging) => {
-    // Open verification modal and request code
+  const handleVerifikasiHalal = (daging) => {
+    // Open verification modal, hanya input kode dari Jagal
     setVerifyingDaging(daging);
     setShowVerifyModal(true);
     setVerifyError('');
@@ -52,33 +52,7 @@ const RegulatorVerifikasiHalal = () => {
     setVerifyInputJagalCode('');
     setJagalCode('');
     setRegulatorCode('');
-    setLoadingCode(true);
-    
-    // Request verification code from backend
-    const API_BASE = 'http://localhost:3000';
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    
-    try {
-      const res = await fetch(`${API_BASE}/transaksiPenyembelihan/regulator/request-verification-code`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ transaksiId: daging.transaksiPenyembelihan?.id })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal meminta kode verifikasi');
-      
-      setRegulatorCode(data.regulatorCode);
-      setJagalCode(data.jagalCode);
-      setVerifySuccess('Kode verifikasi berhasil dikirim ke email Anda!');
-      setTimeout(() => setVerifySuccess(''), 3000);
-    } catch (error) {
-      console.error('Error requesting verification code:', error);
-      setVerifyError('Gagal meminta kode verifikasi: ' + error.message);
-    } finally {
-      setLoadingCode(false);
-    }
+    setLoadingCode(false);
   };
   
   const handleCopyCode = async () => {
@@ -410,64 +384,22 @@ const RegulatorVerifikasiHalal = () => {
               </div>
             )}
             
-            {loadingCode ? (
-              <div className="mb-4 p-6 text-center">
-                <i className="fas fa-spinner fa-spin text-3xl text-primary mb-2"></i>
-                <p className="text-sm text-gray-600">Mengirim kode verifikasi...</p>
-              </div>
-            ) : (
-              <>
-                {regulatorCode && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <i className="fas fa-key mr-1"></i>
-                      Kode Verifikasi Anda (Regulator)
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={regulatorCode}
-                        readOnly
-                        className="flex-1 bg-emerald-50 border border-emerald-300 rounded-md px-3 py-2 text-center font-mono text-lg font-bold tracking-wider"
-                      />
-                      <button
-                        onClick={handleCopyCode}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md transition text-sm"
-                      >
-                        <i className="fas fa-copy"></i>
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      <i className="fas fa-info-circle mr-1"></i>
-                      Kode ini telah dikirim ke email Anda. Bagikan kepada <strong>Jagal</strong>
-                    </p>
-                  </div>
-                )}
-                
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <i className="fas fa-shield-check mr-1"></i>
-                    Kode Konfirmasi dari Jagal
-                  </label>
-                  <input
-                    type="text"
-                    value={verifyInputJagalCode}
-                    onChange={(e) => setVerifyInputJagalCode(e.target.value)}
-                    placeholder="Masukkan kode dari Jagal"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Jagal akan memberikan kode setelah menerima kode Anda
-                  </p>
-                  {jagalCode && (
-                    <p className="text-xs text-blue-600 mt-2">
-                      <i className="fas fa-info-circle mr-1"></i>
-                      Expected: {jagalCode} (untuk validasi internal)
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <i className="fas fa-shield-check mr-1"></i>
+                Kode Konfirmasi dari Jagal
+              </label>
+              <input
+                type="text"
+                value={verifyInputJagalCode}
+                onChange={(e) => setVerifyInputJagalCode(e.target.value)}
+                placeholder="Masukkan kode dari Jagal"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Jagal akan memberikan kode setelah menerima kode Anda
+              </p>
+            </div>
             
             <div className="flex justify-end gap-3">
               <button

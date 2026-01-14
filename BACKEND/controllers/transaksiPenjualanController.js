@@ -2,32 +2,16 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { uploadToIPFS } = require("../config/ipfs");
 const { generateOTP, sendOTPEmail, sendTransactionSuccessEmail, sendTransactionCancelEmail } = require("../utils/emailService");
+const transaksiPenjualanService = require("../services/transaksiPenjualanService");
+const enrichTransaksiWithEntityInfo = require("../service/transaksiPenjualan/enrichTransaksiWithEntityInfo");
 
 exports.getAllTransaksiPenjualan = async (req, res) => {
   try {
-    const transaksiPenjualan = await prisma.transaksiPenjualan.findMany({
-      include: {
-        sapi: {
-          include: {
-            peternak: true,
-            pasarHewan: true,
-            jagal: true,
-          },
-        },
-        daging: {
-          include: {
-            sapi: true,
-          },
-        },
-      },
-      orderBy: {
-        timestamp: "desc",
-      },
-    });
+    const transaksiPenjualan = await transaksiPenjualanService.getAllTransaksiPenjualan();
     res.status(200).json({
       message: "All transactions retrieved successfully",
       count: transaksiPenjualan.length,
-      data: transaksiPenjualan
+      data: await enrichTransaksiWithEntityInfo(transaksiPenjualan)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -37,121 +21,18 @@ exports.getAllTransaksiPenjualan = async (req, res) => {
 // Testing endpoint - Get transactions by seller type
 exports.getTransaksiByPenjualType = async (req, res) => {
   const { penjualType } = req.params;
-
   try {
     const validSellerTypes = ["PETERNAK", "PASAR_HEWAN", "JAGAL", "RPH", "DISTRIBUTOR", "HOREKA"];
-    
     if (!validSellerTypes.includes(penjualType)) {
-      return res.status(400).json({ 
-        error: `Invalid penjualType. Must be one of: ${validSellerTypes.join(', ')}` 
+      return res.status(400).json({
+        error: `Invalid penjualType. Must be one of: ${validSellerTypes.join(', ')}`
       });
     }
-
-    const transaksiPenjualan = await prisma.transaksiPenjualan.findMany({
-      where: {
-        penjualType: penjualType
-      },
-      include: {
-        sapi: {
-          include: {
-            peternak: true,
-            pasarHewan: true,
-            jagal: true,
-          },
-        },
-        daging: {
-          include: {
-            sapi: true,
-          },
-        },
-      },
-      orderBy: {
-        timestamp: "desc",
-      },
-    });
-
+    const transaksiPenjualan = await transaksiPenjualanService.getTransaksiByPenjualType(penjualType);
+    
     // Enrich data with seller and buyer information
-    const enrichedTransaksi = await Promise.all(
-      transaksiPenjualan.map(async (transaksi) => {
-        let sellerInfo = null;
-        let buyerInfo = null;
-
-        // Get seller information
-        switch (transaksi.penjualType) {
-          case "PETERNAK":
-            sellerInfo = await prisma.peternak.findUnique({
-              where: { id: transaksi.penjualId },
-            });
-            break;
-          case "PASAR_HEWAN":
-            sellerInfo = await prisma.pasarHewan.findUnique({
-              where: { id: transaksi.penjualId },
-            });
-            break;
-          case "JAGAL":
-            sellerInfo = await prisma.jagal.findUnique({
-              where: { id: transaksi.penjualId },
-            });
-            break;
-          case "RPH":
-            sellerInfo = await prisma.rPH.findUnique({
-              where: { id: transaksi.penjualId },
-            });
-            break;
-          case "DISTRIBUTOR":
-            sellerInfo = await prisma.distributor.findUnique({
-              where: { id: transaksi.penjualId },
-            });
-            break;
-          case "HOREKA":
-            sellerInfo = await prisma.horeka.findUnique({
-              where: { id: transaksi.penjualId },
-            });
-            break;
-        }
-
-        // Get buyer information
-        switch (transaksi.pembeliType) {
-          case "PETERNAK":
-            buyerInfo = await prisma.peternak.findUnique({
-              where: { id: transaksi.pembeliId },
-            });
-            break;
-          case "PASAR_HEWAN":
-            buyerInfo = await prisma.pasarHewan.findUnique({
-              where: { id: transaksi.pembeliId },
-            });
-            break;
-          case "JAGAL":
-            buyerInfo = await prisma.jagal.findUnique({
-              where: { id: transaksi.pembeliId },
-            });
-            break;
-          case "RPH":
-            buyerInfo = await prisma.rPH.findUnique({
-              where: { id: transaksi.pembeliId },
-            });
-            break;
-          case "DISTRIBUTOR":
-            buyerInfo = await prisma.distributor.findUnique({
-              where: { id: transaksi.pembeliId },
-            });
-            break;
-          case "HOREKA":
-            buyerInfo = await prisma.horeka.findUnique({
-              where: { id: transaksi.pembeliId },
-            });
-            break;
-        }
-
-        return {
-          ...transaksi,
-          sellerInfo,
-          buyerInfo,
-        };
-      })
-    );
-
+    const enrichedTransaksi = await enrichTransaksiWithEntityInfo(transaksiPenjualan);
+    
     res.status(200).json({
       message: `Transactions for seller type ${penjualType} retrieved successfully`,
       penjualType,
@@ -482,55 +363,83 @@ exports.createTransaksiPenjualan = async (req, res) => {
     }
 
     if (dagingId) {
-      const daging = await prisma.daging.findUnique({
-        where: { id: dagingId },
-        include: {
-          sapi: true,
-          jagal: true,
-          rph: true,
+    const daging = await prisma.daging.findUnique({
+      where: { id: dagingId },
+      include: {
+        sapi: true,
+        jagal: true,
+        rph: true,
+      },
+    });
+
+    // 1️⃣ Validasi eksistensi
+    if (!daging) {
+      return res.status(404).json({
+        error: `Daging dengan ID ${dagingId} tidak ditemukan`,
+      });
+    }
+
+    // 2️⃣ 🔴 HARD GUARD HALAL (WAJIB)
+    if (daging.statusHalal !== "VERIFIED") {
+      return res.status(400).json({
+        error: "Daging belum terverifikasi halal oleh Regulator",
+        statusHalal: daging.statusHalal,
+      });
+    }
+
+    if (!daging.verifikasiJagal || !daging.verifikasiRegulator) {
+      return res.status(400).json({
+        error: "Verifikasi Jagal dan Regulator belum lengkap",
+      });
+    }
+
+    // 3️⃣ Validasi kepemilikan daging
+    let isOwner = false;
+
+    if (penjualType === "JAGAL" && daging.jagalId === penjualId) {
+      isOwner = true;
+
+    } else if (penjualType === "RPH") {
+      // RPH hanya boleh menjual daging yang diproses olehnya
+      const rphProcessed = await prisma.transaksiPenyembelihan.findFirst({
+        where: {
+          sapiId: daging.sapiId,
+          rphId: penjualId,
+          status: "VERIFIED",
         },
       });
-      if (!daging) {
-        return res.status(404).json({ error: `Daging dengan ID ${dagingId} tidak ditemukan` });
-      }
 
-      // Validate ownership of daging (only JAGAL and RPH can own daging)
-      let isOwner = false;
-      if (penjualType === "JAGAL" && daging.jagalId === penjualId) {
+      if (rphProcessed) {
         isOwner = true;
-      } else if (penjualType === "RPH") {
-        // RPH can sell daging if they processed it
-        const rphProcessed = await prisma.transaksiPenyembelihan.findFirst({
-          where: {
-            sapiId: daging.sapiId,
-            penerimaType: "RPH",
-            penerimaId: penjualId,
-          },
-        });
-        if (rphProcessed) {
-          isOwner = true;
-        }
-      } else if (penjualType === "DISTRIBUTOR") {
-        // Check if distributor received this daging through previous transaction
-        const distributorOwnership = await prisma.transaksiPenjualan.findFirst({
-          where: {
-            dagingId: dagingId,
-            pembeliType: "DISTRIBUTOR",
-            pembeliId: penjualId,
-            verificationStatus: "VERIFIED",
-          },
-        });
-        if (distributorOwnership) {
-          isOwner = true;
-        }
       }
 
-      if (!isOwner) {
-        return res.status(400).json({ error: `Penjual tidak memiliki kepemilikan atas daging dengan ID ${dagingId}` });
-      }
+    } else if (penjualType === "DISTRIBUTOR") {
+      // Distributor hanya boleh menjual daging yang sudah diterimanya
+      const distributorOwnership = await prisma.transaksiPenjualan.findFirst({
+        where: {
+          dagingId: dagingId,
+          pembeliType: "DISTRIBUTOR",
+          pembeliId: penjualId,
+          verificationStatus: "VERIFIED",
+        },
+      });
 
+      if (distributorOwnership) {
+        isOwner = true;
+      }
+    }
+
+    // 4️⃣ Final ownership guard
+    if (!isOwner) {
+      return res.status(403).json({
+        error: `Penjual tidak memiliki kepemilikan sah atas daging dengan ID ${dagingId}`,
+      });
+    }
+
+      // 5️⃣ Tandai tipe item transaksi
       itemType = "daging";
     }
+
 
     if (!sapiId && !dagingId) {
       return res.status(400).json({ error: "sapiId atau dagingId harus diisi" });

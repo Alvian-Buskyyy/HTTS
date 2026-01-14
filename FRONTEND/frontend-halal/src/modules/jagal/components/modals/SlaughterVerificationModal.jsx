@@ -48,30 +48,16 @@ const SlaughterVerificationModal = ({
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
             <p className="text-sm text-blue-800 mb-2">
               <i className="fas fa-shield-alt mr-2"></i>
-              Kode Verifikasi Bersama
+              Kode verifikasi telah dikirimkan ke email Anda. Silakan cek email dan masukkan kode tersebut di bawah ini untuk verifikasi bersama.
             </p>
-            <div className="flex flex-col sm:flex-row items-center sm:justify-center gap-3 text-center">
-              <div className="text-2xl font-mono tracking-widest text-blue-700 text-center">
-                {verifyingSlaughter.verify?.code || '— — — — — —'}
-              </div>
+            {!verifyingSlaughter.verify?.code && (
               <button
-                className="px-2 py-1 text-xs border border-blue-400 text-blue-600 rounded hover:bg-blue-100"
-                onClick={handleCopySlaughterCode}
+                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                onClick={() => handleRequestSlaughterVerification(verifyingSlaughter.id)}
               >
-                Salin
+                Buat Kode
               </button>
-              {!verifyingSlaughter.verify?.code && (
-                <button
-                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                  onClick={() => handleRequestSlaughterVerification(verifyingSlaughter.id)}
-                >
-                  Buat Kode
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-blue-700 mt-2">
-              Bagikan kode ini kepada RPH untuk konfirmasi. Pihak RPH harus mengirimkan kembali kode yang sama.
-            </p>
+            )}
           </div>
 
           <div>

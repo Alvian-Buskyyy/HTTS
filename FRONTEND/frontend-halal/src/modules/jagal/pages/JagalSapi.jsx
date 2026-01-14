@@ -62,31 +62,7 @@ const JagalSapi = () => {
           fatherId: ''
         })) : [];
 
-        // Merge dengan data lokal hasil pendaftaran (localStorage)
-        let localItems = [];
-        try {
-          const ls = localStorage.getItem('cattleList');
-          if (ls) localItems = JSON.parse(ls);
-        } catch {}
-
-        const mappedLocal = Array.isArray(localItems) ? localItems.map(item => ({
-          id: item.id,
-          type: item.jenis || item.customJenis || 'Sapi',
-          gender: item.kelamin || '-',
-          weight: Number(item.berat) || 0,
-          healthStatus: item.healthStatus || 'sehat',
-          availability: item.availability || 'available',
-          age: Number(item.usia) || 0,
-          birthDate: item.tanggalLahir || '',
-          origin: item.origin || 'lahir_sendiri',
-          motherId: item.motherId || '',
-          fatherId: item.fatherId || ''
-        })) : [];
-
-        const idSet = new Set(data.map(d => d.id));
-        const merged = data.concat(mappedLocal.filter(m => m.id && !idSet.has(m.id)));
-
-        setCattle(merged);
+        setCattle(data);
       } catch (e) {
         console.error('Gagal memuat data sapi Jagal:', e);
         setCattle([]);

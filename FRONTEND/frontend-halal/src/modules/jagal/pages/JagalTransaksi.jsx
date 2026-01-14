@@ -291,12 +291,6 @@ const JagalTransaksi = () => {
   // Tab Change Handler
   const handleTabChange = (tab) => {
     console.log('🔄 [JAGAL TAB] Tab changed from', activeTab, 'to', tab);
-    if (tab === 'incoming') {
-      console.log('📋 [JAGAL TAB] Switching to incoming tab, current data:', {
-        incomingCount: incomingTransactions.length,
-        incomingTransactions: incomingTransactions
-      });
-    }
     setActiveTab(tab);
   };
 
@@ -810,8 +804,11 @@ const JagalTransaksi = () => {
     return <span className={`px-2 py-1 rounded-full text-xs ${className}`}>{text}</span>;
   };
 
-  // Filter transactions
-  const filteredTransactions = filterTransactions(transactions, transactionFilter);
+  // Filter transactions sapi
+  const filteredSapiTransactions = filterTransactions(transactions, transactionFilter).filter(tx => tx.type === 'sapi' || !tx.type);
+  // Filter transactions daging
+  const filteredDagingTransactions = dagingTransactions.filter(tx => tx.type === 'daging' || tx.dagingId);
+  // Filter transaksi masuk
   const filteredIncoming = filterTransactions(incomingTransactions, transactionFilter);
 
   return (
@@ -875,18 +872,18 @@ const JagalTransaksi = () => {
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
               {[
-                { id: 'sales', label: 'Penjualan', icon: 'fa-shopping-cart' },
-                { id: 'incoming', label: 'Pembelian', icon: 'fa-arrow-down', badge: incomingTransactions.filter(t => t.canAccept).length },
+                { id: 'sales', label: 'Penjualan Sapi', icon: 'fa-shopping-cart' },
                 { id: 'transfer', label: 'Penjualan Daging', icon: 'fa-drumstick-bite' },
+                { id: 'incoming', label: 'Pembelian', icon: 'fa-arrow-down', badge: incomingTransactions.filter(t => t.canAccept).length },
                 { id: 'slaughter', label: 'Penyembelihan', icon: 'fa-cut' },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`${
-                    activeTab === tab.id
+                  className={`$
+                    {activeTab === tab.id
                       ? 'border-primary text-primary'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
                   } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
                 >
                   <i className={`fas ${tab.icon}`}></i>
@@ -917,60 +914,36 @@ const JagalTransaksi = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID Transaksi
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tanggal
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pembeli
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sapi
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Verifikasi
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Aksi
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Transaksi</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pembeli</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sapi</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Verifikasi</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransactions.length === 0 ? (
+                  {filteredSapiTransactions.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                        Tidak ada transaksi penjualan
+                        Tidak ada transaksi penjualan sapi
                       </td>
                     </tr>
                   ) : (
-                    filteredTransactions.map((tx) => (
+                    filteredSapiTransactions.map((tx) => (
                       <tr key={tx.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {tx.id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(tx.date)}
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tx.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(tx.date)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div>
                             <div className="font-medium">{tx.buyerName}</div>
                             <div className="text-xs text-gray-400">{tx.buyerType}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {tx.cattleId}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getTransactionStatusBadge(tx.status)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getVerificationBadge(tx.verificationStatus)}
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.cattleId}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{getTransactionStatusBadge(tx.status)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{getVerificationBadge(tx.verificationStatus)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           <button
                             onClick={() => handleViewTransaction(tx.id)}
@@ -978,12 +951,20 @@ const JagalTransaksi = () => {
                           >
                             <i className="fas fa-eye"></i>
                           </button>
+                          {/* Verifikasi Bersama untuk transaksi sapi */}
                           {tx.status === 'pending' && tx.verificationStatus === 'waiting_buyer' && (
                             <button
-                              onClick={() => handleRequestVerification(tx.id)}
-                              className="text-green-600 hover:text-green-900"
+                              onClick={() => {
+                                setVerifyingTx(tx);
+                                setVerifyInputCode('');
+                                setVerifyError('');
+                                setVerifySuccess('');
+                                setShowVerifyModal(true);
+                              }}
+                              className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10"
                             >
-                              <i className="fas fa-check"></i>
+                              <i className="fas fa-key mr-1"></i>
+                              Verifikasi Bersama
                             </button>
                           )}
                           {tx.status === 'pending' && (
@@ -1061,22 +1042,20 @@ const JagalTransaksi = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           {tx.canAccept && (
-                            <>
-                              <button
-                                onClick={() => handleAcceptIncomingTransaction(tx.id)}
-                                className="text-green-600 hover:text-green-900"
-                                title="Terima"
-                              >
-                                <i className="fas fa-check"></i>
-                              </button>
-                              <button
-                                onClick={() => handleRejectIncomingTransaction(tx.id)}
-                                className="text-red-600 hover:text-red-900"
-                                title="Tolak"
-                              >
-                                <i className="fas fa-times"></i>
-                              </button>
-                            </>
+                            <button
+                              className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10"
+                              onClick={() => {
+                                setVerifyingTx(tx);
+                                setVerifyInputCode('');
+                                setVerifyError('');
+                                setVerifySuccess('');
+                                setShowVerifyModal(true);
+                              }}
+                              title="Verifikasi Bersama"
+                            >
+                              <i className="fas fa-key mr-1"></i>
+                              Verifikasi Bersama
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -1090,429 +1069,132 @@ const JagalTransaksi = () => {
 
         {/* Transfer Tab - Penjualan Daging */}
         {activeTab === 'transfer' && (
-          <div className="space-y-6">
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-blue-600 font-medium">Total Transaksi</p>
-                    <p className="text-2xl font-bold text-blue-900">{dagingStats.total}</p>
-                  </div>
-                  <i className="fas fa-receipt text-3xl text-blue-300"></i>
-                </div>
-              </div>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-green-600 font-medium">Transaksi Keluar</p>
-                    <p className="text-2xl font-bold text-green-900">{dagingStats.outgoing}</p>
-                  </div>
-                  <i className="fas fa-arrow-up text-3xl text-green-300"></i>
-                </div>
-              </div>
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-purple-600 font-medium">Transaksi Masuk</p>
-                    <p className="text-2xl font-bold text-purple-900">{dagingStats.incoming}</p>
-                  </div>
-                  <i className="fas fa-arrow-down text-3xl text-purple-300"></i>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Penjualan Daging ke Distributor</h2>
-              {transferSuccess && (
-                <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded mb-4">
-                  Transaksi penjualan daging berhasil dibuat!
-                </div>
-              )}
-            <form onSubmit={handleNewTransferSubmit} className="space-y-4 mb-8">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pilih Daging <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={newTransfer.cattleId}
-                  onChange={(e) => setNewTransfer({ ...newTransfer, cattleId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                >
-                  <option value="">-- Pilih Daging --</option>
-                  {availableDaging.length === 0 ? (
-                    <option disabled>Tidak ada daging tersedia</option>
+          <div className="bg-white rounded-lg shadow overflow-hidden mt-4">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Transaksi</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Arah</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Penjual</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pembeli</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Daging</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status Verifikasi</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredDagingTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" className="px-6 py-4 text-center text-gray-500">
+                        Belum ada transaksi penjualan daging
+                      </td>
+                    </tr>
                   ) : (
-                    availableDaging.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {`${d.id.substring(0, 8)}... | ${d.sapi?.jenis || 'N/A'} - ${d.sapi?.beratSapi || 0}kg | Total: ${d.totalBerat}kg (Daging: ${d.beratDaging}kg, Jeroan: ${d.beratJeroan}kg, Tulang: ${d.beratTulang}kg)`}
-                      </option>
+                    filteredDagingTransactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {tx.id.substring(0, 12)}...
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDateTime(tx.timestamp)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {tx.direction === 'outgoing' ? (
+                            <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                              <i className="fas fa-arrow-up mr-1"></i>Keluar
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                              <i className="fas fa-arrow-down mr-1"></i>Masuk
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div>
+                            <div className="font-medium">{tx.sellerName || 'N/A'}</div>
+                            <div className="text-xs text-gray-400">{tx.penjualType}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div>
+                            <div className="font-medium">{tx.buyerName || 'N/A'}</div>
+                            <div className="text-xs text-gray-400">{tx.pembeliType}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {tx.dagingId ? tx.dagingId.substring(0, 12) + '...' : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getVerificationBadge(tx.verificationStatus)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {tx.cid ? (
+                            <a 
+                              href={`https://ipfs.io/ipfs/${tx.cid}`} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="text-primary hover:underline"
+                              title={tx.cid}
+                            >
+                              <i className="fas fa-link"></i>
+                            </a>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center gap-3">
+                            {/* Verifikasi Bersama untuk transaksi daging */}
+                            {tx.direction === 'outgoing' && (tx.verificationStatus === 'WAITING_BUYER' || tx.verificationStatus === 'PENDING') && (
+                              <button
+                                className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10"
+                                onClick={() => {
+                                  setVerifyingTx(tx);
+                                  setVerifyInputCode('');
+                                  setVerifyError('');
+                                  setVerifySuccess('');
+                                  setShowVerifyModal(true);
+                                }}
+                              >
+                                <i className="fas fa-key mr-1"></i>
+                                Verifikasi Bersama
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                setSelectedTransaction(tx);
+                                setShowDetailModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Lihat Detail"
+                            >
+                              Detail
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     ))
                   )}
-                </select>
-                {availableDaging.length === 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Belum ada daging yang siap dijual. Daging harus terverifikasi halal terlebih dahulu.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Distributor Tujuan
-                </label>
-                <select
-                  value={newTransfer.recipient}
-                  onChange={(e) => setNewTransfer({ ...newTransfer, recipient: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                >
-                  <option value="">Pilih Distributor</option>
-                  {entityOptions.filter(e => e.type === 'DISTRIBUTOR').map((e) => (
-                    <option key={`${e.type}:${e.id}`} value={`${e.type}:${e.id}`}>
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tanggal Transaksi
-                </label>
-                <input
-                  type="date"
-                  value={newTransfer.date}
-                  onChange={(e) => setNewTransfer({ ...newTransfer, date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Catatan
-                </label>
-                <textarea
-                  value={newTransfer.notes}
-                  onChange={(e) => setNewTransfer({ ...newTransfer, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  rows="3"
-                  placeholder="Catatan tambahan (opsional)"
-                ></textarea>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primaryDark transition-colors"
-              >
-                Buat Transaksi Penjualan
-              </button>
-            </form>
-
-            {/* Tabel Transaksi Penjualan Daging */}
-            <div className="border-t pt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-md font-semibold text-gray-800">
-                  <i className="fas fa-list mr-2 text-primary"></i>
-                  Daftar Transaksi Penjualan Daging
-                </h3>
-              </div>
-
-              {/* Filter untuk transaksi daging */}
-              <div className="mb-4">
-                <select
-                  className="border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                  value={transactionFilter.verificationStatus}
-                  onChange={(e) => setTransactionFilter({ ...transactionFilter, verificationStatus: e.target.value })}
-                >
-                  <option value="all">Semua Status Verifikasi</option>
-                  <option value="waiting_buyer">Menunggu Verifikasi</option>
-                  <option value="verified">Terverifikasi</option>
-                  <option value="rejected">Ditolak</option>
-                </select>
-              </div>
-
-              {dagingLoading ? (
-                <div className="text-center py-8 text-gray-500">
-                  <i className="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                  <p>Memuat transaksi...</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          ID Transaksi
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tanggal
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Arah
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Penjual
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Pembeli
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          ID Daging
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status Verifikasi
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          CID
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tindakan
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {dagingTransactions
-                        .filter((t) => transactionFilter.verificationStatus === 'all' || t.verificationStatus === transactionFilter.verificationStatus)
-                        .length === 0 ? (
-                        <tr>
-                          <td colSpan="9" className="px-6 py-4 text-center text-gray-500">
-                            Belum ada transaksi penjualan daging
-                          </td>
-                        </tr>
-                      ) : (
-                        dagingTransactions
-                          .filter((t) => transactionFilter.verificationStatus === 'all' || t.verificationStatus === transactionFilter.verificationStatus)
-                          .map((tx) => (
-                            <tr key={tx.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {tx.id.substring(0, 12)}...
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDateTime(tx.timestamp)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {tx.direction === 'outgoing' ? (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                                    <i className="fas fa-arrow-up mr-1"></i>Keluar
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                                    <i className="fas fa-arrow-down mr-1"></i>Masuk
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div>
-                                  <div className="font-medium">{tx.sellerName || 'N/A'}</div>
-                                  <div className="text-xs text-gray-400">{tx.penjualType}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div>
-                                  <div className="font-medium">{tx.buyerName || 'N/A'}</div>
-                                  <div className="text-xs text-gray-400">{tx.pembeliType}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tx.dagingId ? tx.dagingId.substring(0, 12) + '...' : 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {getVerificationBadge(tx.verificationStatus)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {tx.cid ? (
-                                  <a 
-                                    href={`https://ipfs.io/ipfs/${tx.cid}`} 
-                                    target="_blank" 
-                                    rel="noreferrer" 
-                                    className="text-primary hover:underline"
-                                    title={tx.cid}
-                                  >
-                                    <i className="fas fa-link"></i>
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex items-center gap-3">
-                                  {tx.direction === 'outgoing' && (tx.verificationStatus === 'WAITING_BUYER' || tx.verificationStatus === 'PENDING') && (
-                                    <button
-                                      className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10"
-                                      onClick={() => {
-                                        setVerifyingTx(tx);
-                                        setVerifyInputCode('');
-                                        setVerifyError('');
-                                        setVerifySuccess('');
-                                        setShowVerifyModal(true);
-                                      }}
-                                    >
-                                      <i className="fas fa-key mr-1"></i>
-                                      Verifikasi Bersama
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      setSelectedTransaction(tx);
-                                      setShowDetailModal(true);
-                                    }}
-                                    className="text-blue-600 hover:text-blue-900"
-                                    title="Lihat Detail"
-                                  >
-                                    Detail
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
         {/* Slaughter Tab */}
         {activeTab === 'slaughter' && (
-          <div className="space-y-6">
-            {/* Form Daftarkan Sapi ke RPH */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Daftarkan Sapi ke RPH</h2>
-              {slaughterSuccess && (
-                <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded mb-4">
-                  Sapi berhasil didaftarkan ke RPH!
-                </div>
-              )}
-              <form onSubmit={handleSlaughterSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Pilih Sapi
-                  </label>
-                  <select
-                    value={slaughterForm.sapiId}
-                    onChange={(e) => setSlaughterForm({ ...slaughterForm, sapiId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
-                  >
-                    <option value="">Pilih Sapi</option>
-                    {sapiJagal.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.tagId || s.id} - {s.jenis} ({s.beratBadan} kg)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Pilih RPH
-                  </label>
-                  <select
-                    value={slaughterForm.rphId}
-                    onChange={(e) => setSlaughterForm({ ...slaughterForm, rphId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
-                  >
-                    <option value="">Pilih RPH</option>
-                    {rphOptions.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.namaRPH} - {r.alamat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-blue-400 cursor-pointer text-white py-2 px-4 rounded-md hover:bg-primaryDark transition-colors"
-                >
-                  Daftarkan ke RPH
-                </button>
-              </form>
-            </div>
-
-            {/* Daging Pending Verifikasi */}
-            {dagingPending.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4">
-                  Daging Pending Verifikasi ({dagingPending.length})
-                </h2>
-                <div className="space-y-4">
-                  {dagingPending.map((item) => (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">Transaksi: {item.id}</p>
-                          <p className="text-sm text-gray-600">Sapi: {item.sapi?.tagId}</p>
-                          <p className="text-sm text-gray-600">RPH: {item.rph?.namaRPH}</p>
-                          {item.daging && (
-                            <p className="text-sm text-gray-600">
-                              Total Berat: {item.daging.totalBerat} kg
-                            </p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleRequestSlaughterVerification(item.id)}
-                          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-                        >
-                          Verifikasi
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Riwayat Penyembelihan */}
-            {riwayatPenyembelihan.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4">Riwayat Penyembelihan</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Sapi
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          RPH
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tanggal
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {riwayatPenyembelihan.map((item) => (
-                        <tr key={item.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.sapi?.tagId}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.rph?.namaRPH}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {getVerificationBadge(item.status)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(item.createdAt)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+          <div className="flex flex-col items-center justify-center min-h-[40vh]">
+            <h2 className="text-xl font-semibold mb-4 text-gray-700">Transaksi Penyembelihan</h2>
+            <p className="mb-6 text-gray-500">Silakan kelola transaksi penyembelihan di halaman khusus.</p>
+            <a
+              href="/jagal/penyembelihan"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-lg font-medium shadow"
+            >
+              Buka Halaman Penyembelihan
+            </a>
           </div>
         )}
 

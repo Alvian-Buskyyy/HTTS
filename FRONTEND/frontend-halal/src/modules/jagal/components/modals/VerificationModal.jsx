@@ -48,30 +48,16 @@ const VerificationModal = ({
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
             <p className="text-sm text-blue-800 mb-2">
               <i className="fas fa-shield-alt mr-2"></i>
-              Kode Verifikasi Bersama
+              Kode verifikasi telah dikirimkan ke email Anda. Silakan cek email dan masukkan kode tersebut di bawah ini untuk verifikasi bersama.
             </p>
-            <div className="flex flex-col sm:flex-row items-center sm:justify-center gap-3 text-center">
-              <div className="text-2xl font-mono tracking-widest text-blue-700 text-center">
-                {verifyingTx.verificationCode || '— — — — — —'}
-              </div>
+            {!verifyingTx.verificationCode && (
               <button
-                className="px-2 py-1 text-xs border border-blue-400 text-blue-600 rounded hover:bg-blue-100"
-                onClick={handleCopyCode}
+                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={() => handleRequestVerification(verifyingTx.id)}
               >
-                Salin
+                Buat Kode
               </button>
-              {!verifyingTx.verificationCode && (
-                <button
-                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                  onClick={() => handleRequestVerification(verifyingTx.id)}
-                >
-                  Buat Kode
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-blue-700 mt-2">
-              Bagikan kode ini kepada pembeli untuk konfirmasi. Pembeli harus mengirimkan kembali kode yang sama.
-            </p>
+            )}
           </div>
 
           <div>
@@ -94,14 +80,14 @@ const VerificationModal = ({
 
         <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
           <button
-            className="px-4 py-2 text-red-600 border border-red-300 rounded-md hover:bg-red-50"
+            className="px-4 py-2 text-white bg-red-500 border border-red-500 rounded-md hover:bg-red-600"
             onClick={handleRejectVerification}
           >
             Tolak
           </button>
           <div className="flex items-center gap-2">
             <button
-              className="px-4 py-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50"
+              className="px-4 py-2 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-100"
               onClick={() => {
                 setShowVerifyModal(false);
                 setVerifyingTx(null);
@@ -112,8 +98,8 @@ const VerificationModal = ({
             <button
               className={`px-4 py-2 rounded-md text-white ${
                 /^[\d]{6}$/.test(verifyInputCode)
-                  ? 'bg-primary hover:bg-primaryDark'
-                  : 'bg-primary/60 cursor-not-allowed'
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : 'bg-green-300 cursor-not-allowed'
               }`}
               onClick={handleConfirmBuyer}
               disabled={!/^\d{6}$/.test(verifyInputCode)}
