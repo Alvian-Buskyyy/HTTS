@@ -4,6 +4,7 @@ const { uploadToIPFS } = require("../config/ipfs");
 const { generateOTP, sendOTPEmail, sendTransactionSuccessEmail, sendTransactionCancelEmail } = require("../utils/emailService");
 const transaksiPenjualanService = require("../services/transaksiPenjualanService");
 const enrichTransaksiWithEntityInfo = require("../service/transaksiPenjualan/enrichTransaksiWithEntityInfo");
+const { getAvailableDagingWeight, validateDagingAvailability, recordDagingSaleReduction } = require("../services/dagingAvailabilityService");
 
 exports.getAllTransaksiPenjualan = async (req, res) => {
   try {
@@ -261,7 +262,7 @@ exports.getTransaksiPenjualanById = async (req, res) => {
 };
 
 exports.createTransaksiPenjualan = async (req, res) => {
-  const { penjualType, pembeliType, penjualId, pembeliId, sapiId, dagingId, jumlahQty, type } = req.body;
+  const { penjualType, pembeliType, penjualId, pembeliId, sapiId, dagingId, jumlahQty, type, beratDaging, beratJeroan, beratTulang } = req.body;
 
   try {
     // Helper function untuk validasi entitas
@@ -448,6 +449,32 @@ exports.createTransaksiPenjualan = async (req, res) => {
     // Validate transaction flow
     validateTransactionFlow(penjualType, pembeliType, itemType);
 
+    // Calculate total berat for daging transaction
+    let totalBerat = null;
+    if (dagingId && beratDaging !== undefined && beratJeroan !== undefined && beratTulang !== undefined) {
+      totalBerat = parseFloat(beratDaging) + parseFloat(beratJeroan) + parseFloat(beratTulang);
+      
+      // Validate menggunakan service untuk menghitung sisa yang tersedia
+      const validation = await validateDagingAvailability(
+        dagingId,
+        penjualType,
+        penjualId,
+        beratDaging,
+        beratJeroan,
+        beratTulang
+      );
+
+      if (!validation.valid) {
+        return res.status(400).json({
+          error: validation.error,
+          details: validation.details,
+          available: validation.available
+        });
+      }
+
+      console.log('✅ [DAGING VALIDATION] Berat valid, sisa tersedia:', validation.available);
+    }
+
     // Generate verification code using email service
     const verificationCode = generateOTP();
 
@@ -460,9 +487,13 @@ exports.createTransaksiPenjualan = async (req, res) => {
         pembeliId,
         sapiId,
         dagingId,
-        jumlahQty,
+        jumlahQty : 1,
         type,
-        verifikasiPenjual: true,
+        beratDaging: beratDaging ? parseFloat(beratDaging) : null,
+        beratJeroan: beratJeroan ? parseFloat(beratJeroan) : null,
+        beratTulang: beratTulang ? parseFloat(beratTulang) : null,
+        totalBerat,
+        verifikasiPenjual: false,
         verifikasiPembeli: false,
         verificationStatus: "PENDING",
         verificationCode,
@@ -540,200 +571,6 @@ exports.requestVerification = async (req, res) => {
       emailSent: emailResult.success,
       instruction: "Penjual harus verifikasi terlebih dahulu, kemudian pembeli.",
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Buyer confirms verification code, then generate CID and transfer ownership
-exports.confirmBuyer = async (req, res) => {
-  const { id } = req.params;
-  const { code } = req.body;
-  
-  console.log('🔍 [BACKEND VERIFY] Received confirmation request:', {
-    transactionId: id,
-    receivedCode: code,
-    codeType: typeof code,
-    codeLength: code ? code.length : 0
-  });
-  
-  try {
-    const existing = await prisma.transaksiPenjualan.findUnique({ where: { id } });
-    
-    if (!existing) {
-      console.error('❌ [BACKEND VERIFY] Transaction not found:', id);
-      return res.status(404).json({ error: `Transaksi Penjualan dengan ID ${id} tidak ditemukan` });
-    }
-    
-    console.log('📋 [BACKEND VERIFY] Transaction found:', {
-      id: existing.id,
-      verificationCode: existing.verificationCode,
-      codeType: typeof existing.verificationCode,
-      codeLength: existing.verificationCode ? existing.verificationCode.length : 0,
-      verificationStatus: existing.verificationStatus,
-      type: existing.type
-    });
-    
-    if (existing.verificationStatus === "REJECTED") {
-      console.error('❌ [BACKEND VERIFY] Transaction already rejected');
-      return res.status(400).json({ error: "Transaksi telah ditolak" });
-    }
-    
-    const expected = existing.verificationCode || "";
-    const receivedCode = (code || "").trim();
-    
-    console.log('🔐 [BACKEND VERIFY] Code comparison:', {
-      received: receivedCode,
-      expected: expected,
-      match: receivedCode === expected,
-      receivedLength: receivedCode.length,
-      expectedLength: expected.length
-    });
-    
-    if (!receivedCode || receivedCode !== expected) {
-      console.error('❌ [BACKEND VERIFY] Code mismatch!');
-      return res.status(400).json({ error: "Kode verifikasi tidak cocok" });
-    }
-    
-    console.log('✅ [BACKEND VERIFY] Code matched! Proceeding with verification...');
-
-
-    // Prepare transaction data for IPFS
-    const timestamp = new Date();
-    const transaksiData = {
-      penjualType: existing.penjualType,
-      penjualId: existing.penjualId,
-      pembeliType: existing.pembeliType,
-      pembeliId: existing.pembeliId,
-      sapiId: existing.sapiId,
-      dagingId: existing.dagingId,
-      jumlahQty: existing.jumlahQty,
-      type: existing.type,
-      timestamp: timestamp.toISOString(),
-    };
-
-    // Upload to IPFS and get CID
-    const transaksiDataString = JSON.stringify(transaksiData);
-    const cid = await uploadToIPFS(transaksiDataString);
-
-    // Update transaction: mark verified, set CID
-    const updatedTransaksi = await prisma.transaksiPenjualan.update({
-      where: { id },
-      data: {
-        verifikasiPembeli: true,
-        verificationStatus: "VERIFIED",
-        cid,
-        timestamp,
-      },
-    });
-
-    // Transfer ownership after verification
-    if (existing.sapiId) {
-      const updateData = {
-        peternakId: null,
-        pasarHewanId: null,
-        jagalId: null,
-      };
-
-      // Update ownership based on buyer type
-      if (existing.pembeliType === "PETERNAK") {
-        updateData.peternakId = existing.pembeliId;
-      } else if (existing.pembeliType === "PASAR_HEWAN") {
-        updateData.pasarHewanId = existing.pembeliId;
-      } else if (existing.pembeliType === "JAGAL") {
-        updateData.jagalId = existing.pembeliId;
-      } else if (existing.pembeliType === "RPH") {
-        // For RPH, we don't transfer ownership to RPH entity
-        // Sapi will be converted to daging through transaksiPenyembelihan
-        // So we keep ownership null for now
-        updateData.peternakId = null;
-        updateData.pasarHewanId = null;
-        updateData.jagalId = null;
-      } else {
-        return res.status(400).json({
-          error: `Transfer kepemilikan sapi ke ${existing.pembeliType} tidak diizinkan`,
-        });
-      }
-
-      await prisma.sapi.update({
-        where: { id: existing.sapiId },
-        data: updateData,
-      });
-
-      // Update jumlah sapi for both entities
-      if (existing.penjualType === "PETERNAK") {
-        await prisma.peternak.update({
-          where: { id: existing.penjualId },
-          data: { jumlahSapi: { decrement: existing.jumlahQty } },
-        });
-      } else if (existing.penjualType === "PASAR_HEWAN") {
-        await prisma.pasarHewan.update({
-          where: { id: existing.penjualId },
-          data: { jumlahSapi: { decrement: existing.jumlahQty } },
-        });
-      } else if (existing.penjualType === "JAGAL") {
-        await prisma.jagal.update({
-          where: { id: existing.penjualId },
-          data: { jumlahSapi: { decrement: existing.jumlahQty } },
-        });
-      }
-
-      if (existing.pembeliType === "PETERNAK") {
-        await prisma.peternak.update({
-          where: { id: existing.pembeliId },
-          data: { jumlahSapi: { increment: existing.jumlahQty } },
-        });
-      } else if (existing.pembeliType === "PASAR_HEWAN") {
-        await prisma.pasarHewan.update({
-          where: { id: existing.pembeliId },
-          data: { jumlahSapi: { increment: existing.jumlahQty } },
-        });
-      } else if (existing.pembeliType === "JAGAL") {
-        await prisma.jagal.update({
-          where: { id: existing.pembeliId },
-          data: { jumlahSapi: { increment: existing.jumlahQty } },
-        });
-      }
-    }
-
-    // Transfer ownership for daging transactions
-    if (existing.dagingId) {
-      console.log('📦 [DAGING TRANSFER] Transferring daging ownership:', {
-        dagingId: existing.dagingId,
-        fromType: existing.penjualType,
-        fromId: existing.penjualId,
-        toType: existing.pembeliType,
-        toId: existing.pembeliId
-      });
-
-      const dagingUpdateData = {
-        // Clear previous ownership
-        distributorId: null,
-        horekaId: null,
-        endCustomerId: null,
-        sudahDijual: true
-      };
-
-      // Set new ownership based on buyer type
-      if (existing.pembeliType === "DISTRIBUTOR") {
-        dagingUpdateData.distributorId = existing.pembeliId;
-      } else if (existing.pembeliType === "HOREKA") {
-        dagingUpdateData.horekaId = existing.pembeliId;
-      } else if (existing.pembeliType === "END_CUSTOMER") {
-        dagingUpdateData.endCustomerId = existing.pembeliId;
-      } else {
-        console.warn('⚠️ [DAGING TRANSFER] Unsupported buyer type for daging:', existing.pembeliType);
-      }
-
-      await prisma.daging.update({
-        where: { id: existing.dagingId },
-        data: dagingUpdateData,
-      });
-
-      console.log('✅ [DAGING TRANSFER] Daging ownership transferred successfully');
-    }
-
-    res.status(200).json({ message: "Verifikasi pembeli berhasil. CID dibuat dan kepemilikan ditransfer.", data: updatedTransaksi, ipfsCid: cid });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1136,6 +973,10 @@ exports.verifyTransaction = async (req, res) => {
           dagingId: existing.dagingId,
           jumlahQty: existing.jumlahQty,
           type: existing.type,
+          beratDaging: existing.beratDaging,
+          beratJeroan: existing.beratJeroan,
+          beratTulang: existing.beratTulang,
+          totalBerat: existing.totalBerat,
           timestamp: updateData.timestamp.toISOString(),
           verificationCode: existing.verificationCode,
           verifiedBySeller: true,
@@ -1212,6 +1053,67 @@ exports.verifyTransaction = async (req, res) => {
             console.error("Error updating entity counter:", counterError);
           }
         }
+
+        // Transfer ownership for daging transactions
+        if (existing.dagingId) {
+          console.log('📦 [DAGING TRANSFER] Transferring daging ownership:', {
+            dagingId: existing.dagingId,
+            fromType: existing.penjualType,
+            fromId: existing.penjualId,
+            toType: existing.pembeliType,
+            toId: existing.pembeliId,
+            totalBerat: existing.totalBerat
+          });
+
+          // For partial sale to distributor, create riwayat kepemilikan record
+          if (existing.pembeliType === "DISTRIBUTOR" && existing.totalBerat) {
+            await prisma.riwayatKepemilikanDaging.create({
+              data: {
+                dagingId: existing.dagingId,
+                distributorId: existing.pembeliId,
+                beratDaging: existing.beratDaging || 0,
+                beratJeroan: existing.beratJeroan || 0,
+                beratTulang: existing.beratTulang || 0,
+                totalBerat: existing.totalBerat,
+                transaksiPenjualanId: existing.id
+              }
+            });
+            
+            console.log('✅ [DAGING TRANSFER] Partial sale recorded in RiwayatKepemilikanDaging');
+          } else {
+            // Full ownership transfer (legacy behavior for non-partial sales)
+            const dagingUpdateData = {
+              distributorId: null,
+              horekaId: null,
+              endCustomerId: null,
+              sudahDijual: true
+            };
+
+            if (existing.pembeliType === "DISTRIBUTOR") {
+              dagingUpdateData.distributorId = existing.pembeliId;
+            } else if (existing.pembeliType === "HOREKA") {
+              dagingUpdateData.horekaId = existing.pembeliId;
+            } else if (existing.pembeliType === "END_CUSTOMER") {
+              dagingUpdateData.endCustomerId = existing.pembeliId;
+            }
+
+            await prisma.daging.update({
+              where: { id: existing.dagingId },
+              data: dagingUpdateData,
+            });
+
+            console.log('✅ [DAGING TRANSFER] Full daging ownership transferred successfully');
+          }
+
+          // Record the sale reduction for tracking
+          try {
+            const remainingWeight = await recordDagingSaleReduction(existing.id);
+            console.log('📊 [DAGING TRACKING] Remaining weight after sale:', remainingWeight);
+          } catch (trackingError) {
+            console.error('⚠️ [DAGING TRACKING] Failed to record reduction:', trackingError.message);
+          }
+        }
+
         isCompleted = true;
       }
     } else {
@@ -1710,6 +1612,107 @@ exports.getDistributorTransactions = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting Distributor transactions:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all transactions for a specific Horeka (both incoming and outgoing)
+exports.getHorekaTransactions = async (req, res) => {
+  const { horekaId } = req.params;
+
+  try {
+    // Validate Horeka exists
+    const horeka = await prisma.horeka.findUnique({
+      where: { id: horekaId },
+    });
+
+    if (!horeka) {
+      return res.status(404).json({ error: `Horeka dengan ID ${horekaId} tidak ditemukan` });
+    }
+
+    // Get all transactions where Horeka is buyer or seller
+    const transactions = await prisma.transaksiPenjualan.findMany({
+      where: {
+        OR: [
+          { pembeliType: 'HOREKA', pembeliId: horekaId },
+          { penjualType: 'HOREKA', penjualId: horekaId },
+        ],
+      },
+      include: {
+        sapi: {
+          include: {
+            peternak: true,
+            pasarHewan: true,
+            jagal: true,
+          },
+        },
+        daging: {
+          include: {
+            sapi: true,
+            jagal: true,
+            distributor: true,
+            horeka: true,
+            endCustomer: true,
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    });
+
+    // Enrich transactions with seller and buyer names
+    const enrichedTransactions = await Promise.all(
+      transactions.map(async (tx) => {
+        let sellerName = tx.penjualId;
+        let buyerName = tx.pembeliId;
+
+        // Get seller name
+        try {
+          const sellerModel = tx.penjualType === 'DISTRIBUTOR' ? 'distributor' :
+                             tx.penjualType === 'HOREKA' ? 'horeka' :
+                             tx.penjualType.toLowerCase();
+          const seller = await prisma[sellerModel].findUnique({
+            where: { id: tx.penjualId },
+          });
+          sellerName = seller?.nama || seller?.namaUsaha || tx.penjualId;
+        } catch (e) {
+          sellerName = tx.penjualId;
+        }
+
+        // Get buyer name
+        try {
+          const buyerModel = tx.pembeliType === 'DISTRIBUTOR' ? 'distributor' :
+                            tx.pembeliType === 'HOREKA' ? 'horeka' :
+                            tx.pembeliType === 'END_CUSTOMER' ? 'endCustomer' :
+                            tx.pembeliType.toLowerCase();
+          const buyer = await prisma[buyerModel].findUnique({
+            where: { id: tx.pembeliId },
+          });
+          buyerName = buyer?.nama || buyer?.namaUsaha || tx.pembeliId;
+        } catch (e) {
+          buyerName = tx.pembeliId;
+        }
+
+        return {
+          ...tx,
+          sellerName,
+          buyerName,
+          direction: tx.penjualId === horekaId ? 'outgoing' : 'incoming',
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: 'Transaksi Horeka berhasil diambil',
+      horeka: horeka,
+      total: enrichedTransactions.length,
+      outgoing: enrichedTransactions.filter(t => t.direction === 'outgoing').length,
+      incoming: enrichedTransactions.filter(t => t.direction === 'incoming').length,
+      data: enrichedTransactions,
+    });
+  } catch (error) {
+    console.error('Error getting Horeka transactions:', error);
     res.status(500).json({ error: error.message });
   }
 };

@@ -4,6 +4,11 @@ import RphSidebar from "../components/RphSidebar";
 
 // RPH Transaksi: menu bar sama dengan JagalTransaksi (sales, slaughter, verification, history)
 const RphTransaksi = () => {
+      // State untuk menyimpan ID RPH
+      const [rphId, setRphId] = useState("");
+    // State untuk modal detail penyembelihan
+    const [showSlaughterDetail, setShowSlaughterDetail] = useState(false);
+    const [selectedSlaughter, setSelectedSlaughter] = useState(null);
   const [activeTab, setActiveTab] = useState("sales");
   const handleTabChange = (tab) => setActiveTab(tab);
 
@@ -71,20 +76,14 @@ const RphTransaksi = () => {
     fetchAllEntities();
   }, []);
 
-  // Slaughter states
-  const [slaughters, setSlaughters] = useState([]);
-  const [slaughterSuccess, setSlaughterSuccess] = useState(false);
-  const [slaughterForm, setSlaughterForm] = useState({
-    sapiId: "",
-    beratDaging: "",
-    idPengecekanHalalSehat: "",
-  });
-  const [selectedSlaughter, setSelectedSlaughter] = useState(null);
-  const [showSlaughterDetail, setShowSlaughterDetail] = useState(false);
-  const [availableSapiForSlaughter, setAvailableSapiForSlaughter] = useState([]);
-  const [rphId, setRphId] = useState("");
-  const [slaughterLoading, setSlaughterLoading] = useState(false);
-  const [slaughterError, setSlaughterError] = useState("");
+  // ...slaughter states removed
+
+    // Verification modal states
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyingTx, setVerifyingTx] = useState(null);
+  const [verifyInputCode, setVerifyInputCode] = useState("");
+  const [verifyError, setVerifyError] = useState("");
+  const [verifySuccess, setVerifySuccess] = useState("");
 
   useEffect(() => {
     try {
@@ -112,41 +111,7 @@ const RphTransaksi = () => {
     }
   }, []);
 
-  // Fetch available sapi and slaughter history when RPH ID is available
-  useEffect(() => {
-    if (rphId) {
-      fetchAvailableSapiForSlaughter();
-      fetchSlaughterHistory();
-    }
-  }, [rphId]);
-
-  const fetchAvailableSapiForSlaughter = useCallback(async () => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/transaksi-penyembelihan/available-sapi/RPH/${rphId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableSapiForSlaughter(data.data);
-      } else {
-        console.error("Failed to fetch available sapi for slaughter");
-      }
-    } catch (error) {
-      console.error("Error fetching available sapi for slaughter:", error);
-    }
-  }, [rphId]);
-
-  const fetchSlaughterHistory = useCallback(async () => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/transaksi-penyembelihan/entity/RPH/${rphId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSlaughters(data.data);
-      } else {
-        console.error("Failed to fetch slaughter history");
-      }
-    } catch (error) {
-      console.error("Error fetching slaughter history:", error);
-    }
-  }, [rphId]);
+  // ...fetch slaughter states removed
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -306,12 +271,6 @@ const RphTransaksi = () => {
     setVerifyDagingSuccess("");
     setVerifyDagingError("");
   };
-  // Verification modal states
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verifyingTx, setVerifyingTx] = useState(null);
-  const [verifyInputCode, setVerifyInputCode] = useState("");
-  const [verifyError, setVerifyError] = useState("");
-  const [verifySuccess, setVerifySuccess] = useState("");
 
   const handleRequestVerification = (transactionId) => {
     const tx = transactions.find((t) => t.id === transactionId);
@@ -336,45 +295,68 @@ const RphTransaksi = () => {
     }
     setShowVerifyModal(true);
   };
-  const handleCopyCode = async () => {
-    if (!verifyingTx?.verify?.code) return;
-    try {
-      await navigator.clipboard.writeText(verifyingTx.verify.code);
-      setVerifySuccess("Kode disalin");
-      setTimeout(() => setVerifySuccess(""), 1200);
-    } catch {
-      setVerifyError("Gagal menyalin");
-      setTimeout(() => setVerifyError(""), 1500);
-    }
-  };
-  const handleConfirmBuyer = () => {
+  
+  const handleConfirmBuyer = async () => {
     if (!verifyingTx) return;
-    const expected = verifyingTx.verify?.code || "";
-    if (verifyInputCode.trim() !== expected) {
-      setVerifyError("Kode tidak cocok");
+    
+    if (!verifyInputCode || verifyInputCode.length !== 6) {
+      setVerifyError("Masukkan kode OTP 6 digit yang valid");
       return;
     }
-    const updated = transactions.map((t) =>
-      t.id === verifyingTx.id
-        ? {
-            ...t,
-            verificationStatus: "verified",
-            status: "verified",
-            verify: { ...(t.verify || {}), buyerSigned: true },
-            blockchainHash: t.blockchainHash || "0x" + Math.random().toString(16).slice(2, 10) + "..." + Math.random().toString(16).slice(2, 10),
-          }
-        : t
-    );
-    setTransactions(updated);
-    setVerifySuccess("Terverifikasi");
-    setVerifyError("");
+    
+    try {
+      const token = localStorage.getItem('token');
+      const rphId = localStorage.getItem('rphId');
+      
+      // Determine role based on transaction
+      const role = verifyingTx.penjualId === rphId ? 'seller' : 'buyer';
+      
+      const res = await fetch(`http://localhost:3000/transaksiPenjualan/${verifyingTx.id}/verify`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          verificationCode: verifyInputCode,
+          verifierRole: role,
+        }),
+      });
+      
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setVerifyError(json?.error || "Kode OTP tidak valid atau sudah kedaluwarsa");
+        return;
+      }
+      
+      const json = await res.json();
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === verifyingTx.id
+            ? { ...t, verificationStatus: "VERIFIED", status: "verified" }
+            : t
+        )
+      );
+      
+      setVerifySuccess("Terverifikasi");
+      setVerifyError("");
+      setTimeout(() => {
+        setShowVerifyModal(false);
+        setVerifySuccess("");
+        setVerifyInputCode("");
+      }, 1500);
+    } catch (error) {
+      console.error(error);
+      setVerifyError(error.message || "Gagal verifikasi");
+    }
+  };
     setTimeout(() => {
       setShowVerifyModal(false);
       setVerifyingTx(null);
       setVerifyInputCode("");
       setVerifySuccess("");
     }, 900);
-  };
+
   const handleRejectVerification = () => {
     if (!verifyingTx) return;
     if (!window.confirm("Tolak verifikasi transaksi ini?")) return;
@@ -474,7 +456,6 @@ const RphTransaksi = () => {
     setSelectedTx(tx);
     setShowDetailModal(true);
   };
-
   return (
     <DashboardLayout title="Transaksi Penjualan" role="RPH" customSidebar={<RphSidebar />}>
       <div className="mt-4 min-h-[70vh] overflow-y-auto pr-1">
@@ -484,12 +465,6 @@ const RphTransaksi = () => {
             onClick={() => handleTabChange("sales")}
           >
             Transaksi Penjualan
-          </button>
-          <button
-            className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === "slaughter" ? "border-primary text-primary" : "border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"}`}
-            onClick={() => handleTabChange("slaughter")}
-          >
-            Transaksi Penyembelihan
           </button>
           <button
             className={`py-3 px-5 text-left text-base font-semibold border-b-2 transition ${activeTab === "verification" ? "border-primary text-primary" : "border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"}`}
@@ -505,7 +480,8 @@ const RphTransaksi = () => {
           </button>
         </div>
 
-        {activeTab === "sales" && (
+        {activeTab === "sales" && 
+        (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="mb-4">
@@ -715,205 +691,68 @@ const RphTransaksi = () => {
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="px-4 py-2">{t.buyerName || t.buyerId}</td>
+                          <td className="px-4 py-2">{t.buyerName}</td>
                           <td className="px-4 py-2">{t.cattleId}</td>
                           <td className="px-4 py-2">{t.quantity}</td>
                           <td className="px-4 py-2">{getTransactionStatusBadge(t.status)}</td>
                           <td className="px-4 py-2">
-                            <button className="text-primary text-xs hover:underline" onClick={() => openDetail(t)}>
+                            <button className="text-primary hover:underline text-xs" onClick={() => { setSelectedTx(t); setShowDetailModal(true); }}>
                               Detail
                             </button>
                           </td>
                         </tr>
                       ))}
-                      {list.length === 0 && (
-                        <tr>
-                          <td colSpan={8} className="px-4 py-6 text-gray-500">
-                            Belum ada transaksi.
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="my-6 border-t border-gray-200"></div>
-
-                <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                  <i className="fas fa-drumstick-bite text-primary"></i> Daging
-                </h3>
+                <h3 className="text-base font-semibold text-gray-800">Verifikasi Transaksi Penjualan Sapi</h3>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm text-left">
-                    <thead>
-                      <tr className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
-                        <th className="px-4 py-2">ID</th>
-                        <th className="px-4 py-2">CID</th>
-                        <th className="px-4 py-2">Daging</th>
-                        <th className="px-4 py-2">Qty</th>
-                        <th className="px-4 py-2">Pembeli</th>
-                        <th className="px-4 py-2">Tanggal</th>
-                        <th className="px-4 py-2">Status</th>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Transaksi</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pembeli</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sapi</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Verifikasi</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {dagingTx.map((t) => (
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {transactions.map((t) => (
                         <tr key={t.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 font-medium text-primary">{t.id}</td>
-                          <td className="px-4 py-2">
-                            {t.cid ? (
-                              <a href={`https://ipfs.io/ipfs/${t.cid}`} target="_blank" rel="noreferrer" className="text-primary hover:underline" title={t.cid}>
-                                {truncateCid(t.cid, 8, 8)}
-                              </a>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2">{t.dagingId}</td>
-                          <td className="px-4 py-2">{t.qty}</td>
-                          <td className="px-4 py-2">{t.buyerName || "-"}</td>
-                          <td className="px-4 py-2">{t.date}</td>
-                          <td className="px-4 py-2">
-                            <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-yellow-100 text-yellow-800">{t.status}</span>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-left">{t.id}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{formatDate(t.date)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{t.buyerName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{t.cattleId}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-left">{getVerificationBadge(t.verificationStatus)}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-left">
+                            <div className="flex items-center gap-3 justify-start">
+                              {t.verificationStatus === "waiting_buyer" && (
+                                <>
+                                  <button className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10" onClick={() => handleRequestVerification(t.id)}>
+                                    Verifikasi Bersama
+                                  </button>
+                                  <button
+                                    className="text-red-500 hover:text-red-700 text-xs"
+                                    onClick={() => {
+                                      setVerifyingTx(t);
+                                      setShowVerifyModal(true);
+                                    }}
+                                  >
+                                    Tolak
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
-                      {dagingTx.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-6 text-gray-500">
-                            Belum ada transaksi daging.
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
-            </div>
-
-            {showForm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/10" onClick={() => setShowForm(false)}>
-                <div className="bg-white rounded-lg shadow-lg w-full max-w-xl p-6" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">Buat Transaksi</h3>
-                    <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-gray-700">
-                      <i className="fas fa-times"></i>
-                    </button>
-                  </div>
-                  <form onSubmit={handleSubmit} className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-600">Pembeli</label>
-                        <input value={form.buyerName} onChange={(e) => setForm((prev) => ({ ...prev, buyerName: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" placeholder="Nama pembeli" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Tipe Pembeli</label>
-                        <select value={form.buyerType} onChange={(e) => setForm((prev) => ({ ...prev, buyerType: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm">
-                          <option value="">Pilih tipe</option>
-                          <option value="DISTRIBUTOR">Distributor</option>
-                          <option value="HOREKA">HOREKA</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Sapi</label>
-                        <select value={form.sapiId} onChange={(e) => setForm((prev) => ({ ...prev, sapiId: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm">
-                          <option value="">Pilih sapi</option>
-                          {cattle.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.id} - {c.jenis}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Jumlah</label>
-                        <input type="number" min="1" value={form.qty} onChange={(e) => setForm((prev) => ({ ...prev, qty: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="text-xs text-gray-600">Catatan</label>
-                        <textarea value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" rows={3} placeholder="Catatan tambahan" />
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border rounded">
-                        Batal
-                      </button>
-                      <button type="submit" className="px-4 py-2 bg-primary text-white rounded">
-                        Simpan
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "verification" && (
-          <div className="bg-white rounded-lg shadow p-6 space-y-8">
-            <h2 className="text-lg font-semibold text-gray-800">Verifikasi Transaksi</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white border rounded-lg p-6 text-center">
-                <i className="fas fa-hourglass-half text-yellow-500 text-3xl mb-2"></i>
-                <p className="text-sm text-gray-500">Menunggu Verifikasi</p>
-                <p className="text-2xl font-semibold text-yellow-600">{transactions.filter((t) => t.verificationStatus === "waiting_buyer").length}</p>
-              </div>
-              <div className="bg-white border rounded-lg p-6 text-center">
-                <i className="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
-                <p className="text-sm text-gray-500">Terverifikasi</p>
-                <p className="text-2xl font-semibold text-green-600">{transactions.filter((t) => t.verificationStatus === "verified").length}</p>
-              </div>
-              <div className="bg-white border rounded-lg p-6 text-center">
-                <i className="fas fa-times-circle text-red-500 text-3xl mb-2"></i>
-                <p className="text-sm text-gray-500">Ditolak</p>
-                <p className="text-2xl font-semibold text-red-600">{transactions.filter((t) => t.verificationStatus === "rejected").length}</p>
-              </div>
-            </div>
-
-            <h3 className="text-base font-semibold text-gray-800">Verifikasi Transaksi Penjualan Sapi</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Transaksi</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pembeli</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sapi</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Verifikasi</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {transactions.map((t) => (
-                    <tr key={t.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-left">{t.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{formatDate(t.date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{t.buyerName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-left">{t.cattleId}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-left">{getVerificationBadge(t.verificationStatus)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-left">
-                        <div className="flex items-center gap-3 justify-start">
-                          {t.verificationStatus === "waiting_buyer" && (
-                            <>
-                              <button className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10" onClick={() => handleRequestVerification(t.id)}>
-                                Verifikasi Bersama
-                              </button>
-                              <button
-                                className="text-red-500 hover:text-red-700 text-xs"
-                                onClick={() => {
-                                  setVerifyingTx(t);
-                                  setShowVerifyModal(true);
-                                }}
-                              >
-                                Tolak
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
 
             <div className="my-4 border-t border-gray-200"></div>
@@ -963,6 +802,7 @@ const RphTransaksi = () => {
                 </tbody>
               </table>
             </div>
+
           </div>
         )}
 
@@ -1176,86 +1016,71 @@ const RphTransaksi = () => {
               </div>
             )}
 
-            <form onSubmit={handleSlaughterSubmit} className="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleSlaughterSubmit} className="border border-gray-200 rounded-lg p-6 bg-gray-50 mb-8 max-w-2xl mx-auto">
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Sapi *</label>
-                  <select name="sapiId" value={slaughterForm.sapiId} onChange={handleSlaughterInputChange} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" required>
-                    <option value="">Pilih Sapi</option>
-                    {availableSapiForSlaughter.map((sapi) => (
-                      <option key={sapi.id} value={sapi.id}>
-                        ID: {sapi.id.substring(0, 8)}... | {sapi.jenis} | {sapi.kelamin} |{sapi.beratSapi ? ` ${sapi.beratSapi} kg` : " Berat tidak diketahui"}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Pilih Sapi yang Akan Disembelih <span className="text-red-500">*</span></label>
+                  <select
+                    name="sapiId"
+                    value={slaughterForm.sapiId}
+                    onChange={handleSlaughterInputChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-base"
+                    required
+                  >
+                    <option value="">-- Pilih Sapi --</option>
+                    {availableSapiForSlaughter.map((tx) => (
+                      <option key={tx.id} value={tx.sapi.id}>
+                        {tx.sapi.jenis} | {tx.sapi.kelamin} | Berat: {tx.sapi.beratSapi || "-"} kg | ID: {tx.sapi.id.substring(0, 8)}...
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">Pilih sapi yang sudah didaftarkan dan siap diproses penyembelihan.</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Berat Daging (kg) *{getSelectedSapiForSlaughter()?.beratSapi && <span className="text-gray-500 text-xs ml-2">(Max: {getSelectedSapiForSlaughter().beratSapi} kg)</span>}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    max={getSelectedSapiForSlaughter()?.beratSapi || undefined}
-                    name="beratDaging"
-                    value={slaughterForm.beratDaging}
-                    onChange={handleSlaughterInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Masukkan berat daging"
-                    required
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ID Pengecekan Halal-Sehat (Opsional)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ID Pengecekan Halal-Sehat <span className="text-gray-400">(Opsional)</span></label>
                   <input
                     type="text"
                     name="idPengecekanHalalSehat"
                     value={slaughterForm.idPengecekanHalalSehat}
                     onChange={handleSlaughterInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-base"
                     placeholder="Contoh: IHS-001"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Isi jika sudah ada hasil pengecekan halal-sehat dari petugas.</p>
                 </div>
-              </div>
 
-              {/* Informasi Sapi Terpilih */}
-              {getSelectedSapiForSlaughter() && (
-                <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-medium text-blue-900 mb-2">Informasi Sapi Terpilih:</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    <div>
-                      <strong>Jenis:</strong> {getSelectedSapiForSlaughter().jenis}
-                    </div>
-                    <div>
-                      <strong>Kelamin:</strong> {getSelectedSapiForSlaughter().kelamin}
-                    </div>
-                    <div>
-                      <strong>Usia:</strong> {getSelectedSapiForSlaughter().usia} tahun
-                    </div>
-                    <div>
-                      <strong>Berat:</strong> {getSelectedSapiForSlaughter().beratSapi || "Tidak diketahui"} kg
+                {getSelectedSapiForSlaughter() && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
+                    <h3 className="font-medium text-blue-900 mb-2 text-base">Informasi Sapi Terpilih</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                      <div><strong>Jenis:</strong> {getSelectedSapiForSlaughter().sapi.jenis}</div>
+                      <div><strong>Kelamin:</strong> {getSelectedSapiForSlaughter().sapi.kelamin}</div>
+                      <div><strong>Usia:</strong> {getSelectedSapiForSlaughter().sapi.usia} tahun</div>
+                      <div><strong>Berat:</strong> {getSelectedSapiForSlaughter().sapi.beratSapi || "Tidak diketahui"} kg</div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="flex justify-end mt-4">
-                <button type="submit" disabled={slaughterLoading || !!slaughterError} className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-md transition text-sm flex items-center gap-2">
-                  {slaughterLoading ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin"></i>
-                      Memproses...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-cut"></i>
-                      Lakukan Penyembelihan
-                    </>
-                  )}
-                </button>
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={slaughterLoading || !!slaughterError}
+                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-md transition text-base flex items-center gap-2 shadow"
+                  >
+                    {slaughterLoading ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        Memproses...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-cut"></i>
+                        Lakukan Penyembelihan
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
 
@@ -1472,6 +1297,8 @@ const RphTransaksi = () => {
       </div>
     </DashboardLayout>
   );
+
 };
+
 
 export default RphTransaksi;

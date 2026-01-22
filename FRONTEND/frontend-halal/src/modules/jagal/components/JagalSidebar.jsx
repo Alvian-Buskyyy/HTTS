@@ -52,9 +52,15 @@ const JagalSidebar = () => {
           </Link>
         </li>
         <li>
-          <Link to="/jagal/kesehatan" className={`flex items-center p-2 rounded-lg text-gray-800 hover:bg-primaryLight hover:text-primary border-primary' : 'border-transparent'}`}>
+          <Link to="/jagal/kesehatan" className={`flex items-center p-2 rounded-lg text-gray-800 hover:bg-primaryLight hover:text-primary border-r-4 ${isActive('/jagal/kesehatan') ? 'bg-primary/10 text-primary border-primary' : 'border-transparent'}`}>
             <i className="fas fa-stethoscope mr-3"></i>
             <span>Kesehatan Ternak</span>
+          </Link>
+        </li>
+        <li>
+          <Link to="/jagal/tracking" className={`flex items-center p-2 rounded-lg text-gray-800 hover:bg-primaryLight hover:text-primary border-r-4 ${isActive('/jagal/tracking') ? 'bg-primary/10 text-primary border-primary' : 'border-transparent'}`}>
+            <i className="fas fa-qrcode mr-3"></i>
+            <span>QR Tracking</span>
           </Link>
         </li>
       </ul>

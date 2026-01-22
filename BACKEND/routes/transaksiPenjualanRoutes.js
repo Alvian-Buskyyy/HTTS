@@ -18,6 +18,7 @@ router.get("/debug/jagal-ids", transaksiPenjualanController.debugJagalIds); // E
 // Specific entity transaction endpoints
 router.get("/jagal/:jagalId/transactions", transaksiPenjualanController.getJagalTransactions); // Get all transactions for specific Jagal
 router.get("/distributor/:distributorId/transactions", transaksiPenjualanController.getDistributorTransactions); // Get all transactions for specific Distributor
+router.get("/horeka/:horekaId/transactions", transaksiPenjualanController.getHorekaTransactions); // Get all transactions for specific Horeka
 
 // Menampilkan transaksi berdasarkan ID
 router.get("/:id", transaksiPenjualanController.getTransaksiPenjualanById); // Menampilkan transaksi berdasarkan ID
@@ -32,7 +33,6 @@ router.post("/transfer", transaksiPenjualanController.transferSapi); // Transfer
 router.post("/:id/verify", transaksiPenjualanController.verifyTransaction); // Verifikasi transaksi oleh penjual atau pembeli (OTP)
 router.put("/:id/verify", transaksiPenjualanController.verifyTransaction); // Verifikasi transaksi dengan PUT method
 router.post("/:id/requestVerification", transaksiPenjualanController.requestVerification); // Permintaan kode verifikasi untuk transaksi
-router.post("/:id/confirmBuyer", transaksiPenjualanController.confirmBuyer); // Pembeli mengonfirmasi verifikasi transaksi
 router.put("/:id/reject", transaksiPenjualanController.rejectVerification); // Pembatalan verifikasi transaksi
 router.post("/:id/rejectVerification", transaksiPenjualanController.rejectVerification); // Membatalkan verifikasi transaksi
 router.put("/:id/cancel", transaksiPenjualanController.cancelTransaksi); // Pembatalan transaksi

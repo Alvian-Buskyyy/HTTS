@@ -8,7 +8,7 @@ exports.getAllQRs = async (req, res) => {
     res.status(200).json(qrs);
   } catch (error) {
     res.status(500).json({ error: error.message });
-  }
+  }solve 
 };
 
 exports.getQRById = async (req, res) => {
@@ -192,3 +192,364 @@ exports.deleteQR = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+/**
+ * Track riwayat kepemilikan dan transaksi sapi
+ * GET /qr/sapi/:sapiId/track
+ */
+exports.trackSapi = async (req, res) => {
+  try {
+    const { sapiId } = req.params;
+
+    // Get sapi detail
+    const sapi = await prisma.sapi.findUnique({
+      where: { id: sapiId },
+      include: {
+        peternak: true,
+        pasarHewan: true,
+        jagal: true,
+        pengecekanSehat: {
+          include: {
+            itemSehat: true
+          }
+        },
+        pengecekanHalalSehat: {
+          include: {
+            itemHalalSehat: true
+          }
+        }
+      }
+    });
+
+    if (!sapi) {
+      return res.status(404).json({
+        success: false,
+        error: 'Sapi tidak ditemukan'
+      });
+    }
+
+    // Get transaction history
+    const transactions = await prisma.transaksiPenjualan.findMany({
+      where: { sapiId: sapiId },
+      orderBy: { timestamp: 'asc' },
+      select: {
+        id: true,
+        penjualType: true,
+        penjualId: true,
+        pembeliType: true,
+        pembeliId: true,
+        timestamp: true,
+        verificationStatus: true,
+        cid: true,
+        notes: true
+      }
+    });
+
+    // Enrich transactions with entity names
+    const enrichedTransactions = await Promise.all(
+      transactions.map(async (tx) => {
+        const sellerName = await getEntityName(tx.penjualType, tx.penjualId);
+        const buyerName = await getEntityName(tx.pembeliType, tx.pembeliId);
+
+        return {
+          id: tx.id,
+          date: tx.timestamp,
+          fromEntity: tx.penjualType,
+          fromName: sellerName,
+          toEntity: tx.pembeliType,
+          toName: buyerName,
+          verified: tx.verificationStatus === 'VERIFIED',
+          cid: tx.cid,
+          notes: tx.notes
+        };
+      })
+    );
+
+    // Determine current owner
+    let currentOwner = {
+      type: sapi.asalType,
+      id: sapi.asalId,
+      name: await getEntityName(sapi.asalType, sapi.asalId)
+    };
+
+    if (sapi.peternakId) {
+      currentOwner = {
+        type: 'PETERNAK',
+        id: sapi.peternakId,
+        name: sapi.peternak?.nama || sapi.peternakId
+      };
+    } else if (sapi.pasarHewanId) {
+      currentOwner = {
+        type: 'PASAR_HEWAN',
+        id: sapi.pasarHewanId,
+        name: sapi.pasarHewan?.nama || sapi.pasarHewanId
+      };
+    } else if (sapi.jagalId) {
+      currentOwner = {
+        type: 'JAGAL',
+        id: sapi.jagalId,
+        name: sapi.jagal?.nama || sapi.jagalId
+      };
+    }
+
+    // Check health status
+    const healthChecks = sapi.pengecekanSehat.map(check => ({
+      item: check.itemSehat.nama,
+      status: check.boolean,
+      category: check.itemSehat.kategori
+    }));
+
+    const halalHealthChecks = sapi.pengecekanHalalSehat.map(check => ({
+      item: check.itemHalalSehat.nama,
+      status: check.boolean,
+      category: check.itemHalalSehat.kategori
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        sapi: {
+          id: sapi.id,
+          jenis: sapi.jenis,
+          kelamin: sapi.kelamin,
+          usia: sapi.usia,
+          berat: sapi.beratSapi,
+          isProcessed: sapi.isProcessed,
+          processedAt: sapi.processedAt
+        },
+        currentOwner,
+        history: enrichedTransactions,
+        healthStatus: {
+          sehat: healthChecks,
+          halalSehat: halalHealthChecks
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error tracking sapi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Gagal melacak riwayat sapi'
+    });
+  }
+};
+
+/**
+ * Track riwayat kepemilikan dan transaksi daging
+ * GET /qr/daging/:dagingId/track
+ */
+exports.trackDaging = async (req, res) => {
+  try {
+    const { dagingId } = req.params;
+
+    // Get daging detail
+    const daging = await prisma.daging.findUnique({
+      where: { id: dagingId },
+      include: {
+        sapi: true,
+        jagal: true,
+        rph: true,
+        distributor: true,
+        horeka: true,
+        endCustomer: true,
+        transaksiPenyembelihan: {
+          include: {
+            checklist: {
+              include: {
+                itemChecklist: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!daging) {
+      return res.status(404).json({
+        success: false,
+        error: 'Daging tidak ditemukan'
+      });
+    }
+
+    // Build history starting from slaughter
+    const history = [];
+
+    // Add slaughter record
+    if (daging.transaksiPenyembelihan) {
+      const tx = daging.transaksiPenyembelihan;
+      history.push({
+        id: tx.id,
+        date: tx.tanggalPenyembelihan || tx.timestamp,
+        type: 'slaughter',
+        fromEntity: 'JAGAL',
+        fromName: daging.jagal?.nama || daging.jagalId,
+        toEntity: 'RPH',
+        toName: daging.rph?.nama || daging.rphId,
+        verified: tx.status === 'VERIFIED',
+        cid: tx.cid,
+        details: {
+          beratDaging: tx.beratDaging,
+          beratJeroan: tx.beratJeroan,
+          beratTulang: tx.beratTulang,
+          totalBerat: tx.totalBerat,
+          checklistPra: tx.checklistPraLengkap,
+          checklistPasca: tx.checklistPascaLengkap
+        }
+      });
+    }
+
+    // Get sales transactions
+    const transactions = await prisma.transaksiPenjualan.findMany({
+      where: { dagingId: dagingId },
+      orderBy: { timestamp: 'asc' },
+      select: {
+        id: true,
+        penjualType: true,
+        penjualId: true,
+        pembeliType: true,
+        pembeliId: true,
+        timestamp: true,
+        verificationStatus: true,
+        cid: true,
+        beratDaging: true,
+        beratJeroan: true,
+        beratTulang: true,
+        totalBerat: true,
+        notes: true
+      }
+    });
+
+    // Enrich sales transactions
+    for (const tx of transactions) {
+      const sellerName = await getEntityName(tx.penjualType, tx.penjualId);
+      const buyerName = await getEntityName(tx.pembeliType, tx.pembeliId);
+
+      history.push({
+        id: tx.id,
+        date: tx.timestamp,
+        type: 'sale',
+        fromEntity: tx.penjualType,
+        fromName: sellerName,
+        toEntity: tx.pembeliType,
+        toName: buyerName,
+        verified: tx.verificationStatus === 'VERIFIED',
+        cid: tx.cid,
+        details: {
+          beratDaging: tx.beratDaging,
+          beratJeroan: tx.beratJeroan,
+          beratTulang: tx.beratTulang,
+          totalBerat: tx.totalBerat
+        },
+        notes: tx.notes
+      });
+    }
+
+    // Determine current owner
+    let currentOwner = {
+      type: 'JAGAL',
+      id: daging.jagalId,
+      name: daging.jagal?.nama || daging.jagalId
+    };
+
+    if (daging.endCustomerId) {
+      currentOwner = {
+        type: 'END_CUSTOMER',
+        id: daging.endCustomerId,
+        name: daging.endCustomer?.nama || daging.endCustomerId
+      };
+    } else if (daging.horekaId) {
+      currentOwner = {
+        type: 'HOREKA',
+        id: daging.horekaId,
+        name: daging.horeka?.nama || daging.horekaId
+      };
+    } else if (daging.distributorId) {
+      currentOwner = {
+        type: 'DISTRIBUTOR',
+        id: daging.distributorId,
+        name: daging.distributor?.namaUsaha || daging.distributorId
+      };
+    }
+
+    // Halal certification status
+    const halalStatus = {
+      status: daging.statusHalal,
+      verifiedAt: daging.verifiedAt,
+      verifikasiJagal: daging.verifikasiJagal,
+      verifikasiRegulator: daging.verifikasiRegulator
+    };
+
+    res.json({
+      success: true,
+      data: {
+        daging: {
+          id: daging.id,
+          sapiId: daging.sapiId,
+          beratDaging: daging.beratDaging,
+          beratJeroan: daging.beratJeroan,
+          beratTulang: daging.beratTulang,
+          totalBerat: daging.totalBerat,
+          sudahDijual: daging.sudahDijual
+        },
+        sapi: {
+          id: daging.sapi.id,
+          jenis: daging.sapi.jenis,
+          kelamin: daging.sapi.kelamin,
+          usia: daging.sapi.usia,
+          berat: daging.sapi.beratSapi
+        },
+        rph: {
+          id: daging.rphId,
+          nama: daging.rph?.nama || daging.rphId,
+          sertifikatHalal: daging.rph?.sertifikatHalal
+        },
+        currentOwner,
+        halalStatus,
+        history
+      }
+    });
+  } catch (error) {
+    console.error('Error tracking daging:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Gagal melacak riwayat daging'
+    });
+  }
+};
+
+/**
+ * Helper function to get entity name by type and ID
+ */
+async function getEntityName(type, id) {
+  try {
+    let entity;
+    switch (type) {
+      case 'PETERNAK':
+        entity = await prisma.peternak.findUnique({ where: { id }, select: { nama: true } });
+        return entity?.nama || id;
+      case 'PASAR_HEWAN':
+        entity = await prisma.pasarHewan.findUnique({ where: { id }, select: { nama: true } });
+        return entity?.nama || id;
+      case 'JAGAL':
+        entity = await prisma.jagal.findUnique({ where: { id }, select: { nama: true } });
+        return entity?.nama || id;
+      case 'RPH':
+        entity = await prisma.rph.findUnique({ where: { id }, select: { nama: true } });
+        return entity?.nama || id;
+      case 'DISTRIBUTOR':
+        entity = await prisma.distributor.findUnique({ where: { id }, select: { namaUsaha: true } });
+        return entity?.namaUsaha || id;
+      case 'HOREKA':
+        entity = await prisma.horeka.findUnique({ where: { id }, select: { nama: true } });
+        return entity?.nama || id;
+      case 'END_CUSTOMER':
+        entity = await prisma.endCustomer.findUnique({ where: { id }, select: { nama: true } });
+        return entity?.nama || id;
+      default:
+        return id;
+    }
+  } catch (error) {
+    console.error('Error getting entity name:', error);
+    return id;
+  }
+}

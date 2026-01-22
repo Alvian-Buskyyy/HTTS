@@ -27,6 +27,12 @@ const DistributorSidebar = () => {
             <span>Transaksi</span>
           </Link>
         </li>
+        <li>
+          <Link to="/distributor/tracking" className={`flex items-center p-2 rounded-lg text-gray-800 hover:bg-primaryLight hover:text-primary border-r-4 ${isActive('/distributor/tracking') ? 'bg-primary/10 text-primary border-primary' : 'border-transparent'}`}>
+            <i className="fas fa-qrcode mr-3"></i>
+            <span>QR Tracking</span>
+          </Link>
+        </li>
       </ul>
       <div className="pt-4 border-t">
         <ul className="space-y-2">

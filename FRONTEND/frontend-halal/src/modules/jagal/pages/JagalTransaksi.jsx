@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../../components/DashboardLayout';
 import JagalSidebar from '../components/JagalSidebar';
+import TransaksiDaging from '../components/TransaksiDaging';
 
 // Config & Constants
 import { 
@@ -424,14 +425,18 @@ const JagalTransaksi = () => {
         transactionType: verifyingTx.type || 'N/A'
       });
       
-      const response = await fetch(`http://localhost:3000/transaksiPenjualan/${verifyingTx.id}/confirmBuyer`, {
+      // Determine role based on transaction
+      const role = verifyingTx.penjualId === localStorage.getItem('jagalId') ? 'seller' : 'buyer';
+      
+      const response = await fetch(`http://localhost:3000/transaksiPenjualan/${verifyingTx.id}/verify`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          code: verifyInputCode.trim()  // Backend expects 'code', not 'verificationCode'
+          verificationCode: verifyInputCode.trim(),
+          verifierRole: role
         }),
       });
 
@@ -527,7 +532,7 @@ const JagalTransaksi = () => {
     console.log('✅ [JAGAL ACCEPT] Starting accept transaction process...');
     
     try {
-      const result = await transactionService.confirmBuyerVerification(transactionId, 'AUTO_ACCEPT');
+      const result = await transactionService.verifyTransaction(transactionId, 'AUTO_ACCEPT', 'buyer');
       
       setIncomingTransactions(prev => prev.map(tx =>
         tx.id === transactionId
@@ -1069,119 +1074,18 @@ const JagalTransaksi = () => {
 
         {/* Transfer Tab - Penjualan Daging */}
         {activeTab === 'transfer' && (
-          <div className="bg-white rounded-lg shadow overflow-hidden mt-4">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Transaksi</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Arah</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Penjual</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pembeli</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID Daging</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status Verifikasi</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">CID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tindakan</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredDagingTransactions.length === 0 ? (
-                    <tr>
-                      <td colSpan="9" className="px-6 py-4 text-center text-gray-500">
-                        Belum ada transaksi penjualan daging
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredDagingTransactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {tx.id.substring(0, 12)}...
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDateTime(tx.timestamp)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {tx.direction === 'outgoing' ? (
-                            <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                              <i className="fas fa-arrow-up mr-1"></i>Keluar
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                              <i className="fas fa-arrow-down mr-1"></i>Masuk
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div>
-                            <div className="font-medium">{tx.sellerName || 'N/A'}</div>
-                            <div className="text-xs text-gray-400">{tx.penjualType}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div>
-                            <div className="font-medium">{tx.buyerName || 'N/A'}</div>
-                            <div className="text-xs text-gray-400">{tx.pembeliType}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {tx.dagingId ? tx.dagingId.substring(0, 12) + '...' : 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getVerificationBadge(tx.verificationStatus)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {tx.cid ? (
-                            <a 
-                              href={`https://ipfs.io/ipfs/${tx.cid}`} 
-                              target="_blank" 
-                              rel="noreferrer" 
-                              className="text-primary hover:underline"
-                              title={tx.cid}
-                            >
-                              <i className="fas fa-link"></i>
-                            </a>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center gap-3">
-                            {/* Verifikasi Bersama untuk transaksi daging */}
-                            {tx.direction === 'outgoing' && (tx.verificationStatus === 'WAITING_BUYER' || tx.verificationStatus === 'PENDING') && (
-                              <button
-                                className="px-3 py-1 rounded text-xs border border-primary text-primary bg-white hover:bg-primary/10"
-                                onClick={() => {
-                                  setVerifyingTx(tx);
-                                  setVerifyInputCode('');
-                                  setVerifyError('');
-                                  setVerifySuccess('');
-                                  setShowVerifyModal(true);
-                                }}
-                              >
-                                <i className="fas fa-key mr-1"></i>
-                                Verifikasi Bersama
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                setSelectedTransaction(tx);
-                                setShowDetailModal(true);
-                              }}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Lihat Detail"
-                            >
-                              Detail
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <TransaksiDaging
+            filteredDagingTransactions={filteredDagingTransactions}
+            setVerifyingTx={setVerifyingTx}
+            setVerifyInputCode={setVerifyInputCode}
+            setVerifyError={setVerifyError}
+            setVerifySuccess={setVerifySuccess}
+            setShowVerifyModal={setShowVerifyModal}
+            setSelectedTransaction={setSelectedTransaction}
+            setShowDetailModal={setShowDetailModal}
+            getVerificationBadge={getVerificationBadge}
+            formatDateTime={formatDateTime}
+          />
         )}
 
         {/* Slaughter Tab */}

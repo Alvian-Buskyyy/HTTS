@@ -1,6 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
+const prisma = new PrismaClient();const { getAvailableDagingWeight } = require("../services/dagingAvailabilityService");
 exports.getAllDistributors = async (req, res) => {
   try {
     const distributors = await prisma.distributor.findMany();
@@ -113,6 +112,80 @@ exports.deleteDistributor = async (req, res) => {
       where: { id: parseInt(id) },
     });
     res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Get daging owned by distributor (from riwayat kepemilikan)
+ */
+exports.getDistributorDaging = async (req, res) => {
+  const { distributorId } = req.params;
+
+  try {
+    // Validate distributor exists
+    const distributor = await prisma.distributor.findUnique({
+      where: { id: distributorId },
+    });
+
+    if (!distributor) {
+      return res.status(404).json({ error: `Distributor with ID ${distributorId} not found` });
+    }
+
+    // Get all riwayat kepemilikan
+    const riwayatList = await prisma.riwayatKepemilikanDaging.findMany({
+      where: {
+        distributorId: distributorId,
+      },
+      include: {
+        daging: {
+          include: {
+            sapi: true,
+            jagal: true,
+            rph: true,
+          },
+        },
+      },
+      orderBy: {
+        tanggal: "desc",
+      },
+    });
+
+    // Group by dagingId and calculate available weight for each daging
+    const dagingMap = new Map();
+
+    for (const riwayat of riwayatList) {
+      const dagingId = riwayat.dagingId;
+
+      if (!dagingMap.has(dagingId)) {
+        // Use service to get accurate available weight
+        const availability = await getAvailableDagingWeight(
+          dagingId,
+          "DISTRIBUTOR",
+          distributorId
+        );
+
+        dagingMap.set(dagingId, {
+          daging: riwayat.daging,
+          totalOwned: availability.totalAwal,
+          totalSold: availability.totalTerjual,
+          availableWeight: availability.sisaDaging,
+          breakdown: availability.breakdown,
+          riwayatList: riwayatList.filter((r) => r.dagingId === dagingId),
+        });
+      }
+    }
+
+    const dagingList = Array.from(dagingMap.values()).filter((item) => item.availableWeight > 0);
+
+    res.status(200).json({
+      success: true,
+      message: "Daging owned by distributor retrieved successfully",
+      distributorId,
+      count: dagingList.length,
+      data: dagingList,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

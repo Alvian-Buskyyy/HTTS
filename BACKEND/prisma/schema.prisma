@@ -169,6 +169,7 @@ model Distributor {
   userId                String?    @unique
 
   daging                Daging[]   // Daging yang dimiliki Distributor
+  riwayatKepemilikan    RiwayatKepemilikanDaging[]  // Riwayat pembelian daging
   profiles              Profile[]
 }
 
@@ -266,9 +267,29 @@ model Daging {
   
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
+
+  riwayatKepemilikanDaging RiwayatKepemilikanDaging[]
   
   transaksiPenjualan     TransaksiPenjualan[]
   qr                     QR[]
+}
+
+model RiwayatKepemilikanDaging {
+  id            String     @id @default(uuid())
+  dagingId      String
+  daging        Daging     @relation(fields: [dagingId], references: [id])
+  distributorId String
+  distributor   Distributor @relation(fields: [distributorId], references: [id])
+  tanggal       DateTime    @default(now())
+  
+  // Detail rincian pembelian (dalam kg)
+  beratDaging   Float       // Jumlah daging yang dibeli
+  beratJeroan   Float       // Jumlah jeroan yang dibeli
+  beratTulang   Float       // Jumlah tulang yang dibeli
+  totalBerat    Float       // Total berat yang dibeli (kg)
+  
+  // Referensi ke transaksi penjualan jika ada
+  transaksiPenjualanId String?
 }
 
 // Model untuk menyimpan item checklist halal yang dibuat oleh Regulator
@@ -390,6 +411,13 @@ model TransaksiPenjualan {
   
   jumlahQty         Int
   type              String
+  
+  // Detail rincian untuk penjualan daging (dalam kg) - untuk partial sale
+  beratDaging       Float?    // Jumlah daging yang dijual
+  beratJeroan       Float?    // Jumlah jeroan yang dijual
+  beratTulang       Float?    // Jumlah tulang yang dijual
+  totalBerat        Float?    // Total berat yang dijual
+  
   timestamp         DateTime  @default(now())
   cid               String     @default("")
   verifikasiPenjual Boolean   @default(false)

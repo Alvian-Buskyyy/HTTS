@@ -24,6 +24,7 @@ const PeternakSidebar = ({ activeSection, sidebarOpen, setSidebarOpen, inline = 
     { id: 'daftar-ternak', label: 'Daftar Ternak', icon: 'fa-list-ul', link: '/peternak/daftar-ternak' },
     { id: 'transaksi', label: 'Transaksi', icon: 'fa-exchange-alt', link: '/peternak/transaksi' },
     { id: 'health', label: 'Kesehatan Ternak', icon: 'fa-stethoscope', link: '/peternak/kesehatan' },
+    { id: 'tracking', label: 'QR Tracking', icon: 'fa-qrcode', link: '/peternak/tracking' },
   ];
 
   if (inline) {

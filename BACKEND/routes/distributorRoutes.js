@@ -5,6 +5,7 @@ const distributorController = require('../controllers/distributorController');
 router.get('/', distributorController.getAllDistributors);
 router.get('/user/:userId', distributorController.getDistributorByUserId);
 router.get('/:id', distributorController.getDistributorById);
+router.get('/:distributorId/daging', distributorController.getDistributorDaging); // Get daging owned by distributor
 router.post('/', distributorController.createDistributor);
 router.put('/:id', distributorController.updateDistributor);
 router.put('/user/:userId', distributorController.updateDistributorByUserId);

@@ -224,14 +224,14 @@ export const requestVerificationCode = async (transactionId) => {
   return data;
 };
 
-// Confirm buyer verification
-export const confirmBuyerVerification = async (transactionId, code) => {
+// Verify transaction with role-based verification
+export const verifyTransaction = async (transactionId, verificationCode, verifierRole) => {
   const headers = getAuthHeaders();
 
-  const res = await fetch(`${API_BASE_URL}/transaksiPenjualan/${transactionId}/confirmBuyer`, {
+  const res = await fetch(`${API_BASE_URL}/transaksiPenjualan/${transactionId}/verify`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ verificationCode, verifierRole }),
   });
 
   const data = await res.json();

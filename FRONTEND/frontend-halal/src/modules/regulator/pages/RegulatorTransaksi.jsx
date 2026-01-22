@@ -19,7 +19,7 @@ const RegulatorTransaksi = () => {
     setLoading(true);
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`${API_BASE}/transaksiPenyembelihan`),
+        fetch(`${API_BASE}/tran saksiPenyembelihan`),
         fetch(`${API_BASE}/transaksiPenjualan`),
       ]);
       const j1 = await r1.json();

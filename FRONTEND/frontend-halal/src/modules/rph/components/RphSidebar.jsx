@@ -60,6 +60,15 @@ const RphSidebar = () => {
             <span>Verifikasi Halal</span>
           </Link>
         </li>
+        <li className="pt-2">
+          <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Tracking</p>
+        </li>
+        <li>
+          <Link to="/rph/tracking" className={`flex items-center p-2 rounded-lg text-gray-800 hover:bg-primaryLight hover:text-primary border-r-4 ${isActive('/rph/tracking') ? 'bg-primary/10 text-primary border-primary' : 'border-transparent'}`}>
+            <i className="fas fa-qrcode mr-3"></i>
+            <span>QR Tracking</span>
+          </Link>
+        </li>
         <li>
           {/* Kesehatan digabung ke Verifikasi Sehat - link dihapus */}
         </li>

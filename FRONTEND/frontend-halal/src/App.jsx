@@ -21,6 +21,7 @@ import PeternakProfil from "./modules/peternak/pages/PeternakProfil";
 import PeternakHealth from "./modules/peternak/pages/PeternakHealth";
 import PeternakDaftarTernak from "./modules/peternak/pages/PeternakDaftarTernak";
 import PeternakSettings from "./modules/peternak/pages/PeternakSettings";
+import PeternakTracking from "./modules/peternak/pages/PeternakTracking";
 
 // Import PasarHewan Components
 import PasarHewanPage from "./modules/pasarHewan/pages/PasarHewanPage";
@@ -41,6 +42,7 @@ import JagalHealth from "./modules/jagal/pages/JagalHealth";
 import JagalProfil from "./modules/jagal/pages/JagalProfil";
 import JagalSettings from "./modules/jagal/pages/JagalSettings";
 import JagalDaftarTernak from "./modules/jagal/pages/JagalDaftarTernak";
+import JagalTracking from "./modules/jagal/pages/JagalTracking";
 
 // RPH pages (mengadopsi struktur Jagal)
 import RphDashboard from "./modules/rph/pages/RphDashboard";
@@ -52,12 +54,14 @@ import RphVerifikasiSehat from "./modules/rph/pages/RphVerifikasiSehat";
 import RphVerifikasiHalal from "./modules/rph/pages/RphVerifikasiHalal";
 import RphTransaksi from "./modules/rph/pages/RphTransaksi";
 import RphProsesPenyembelihan from "./modules/rph/pages/RphProsesPenyembelihan";
+import RphTracking from "./modules/rph/pages/RphTracking";
 
 // Distributor pages (adopsi struktur RPH)
 import DistributorDashboard from "./modules/distributor/pages/DistributorDashboard";
 import DistributorTransaksi from "./modules/distributor/pages/DistributorTransaksiDaging";
 import DistributorProfil from "./modules/distributor/pages/DistributorProfil";
 import DistributorSettings from "./modules/distributor/pages/DistributorSettings";
+import DistributorTracking from "./modules/distributor/pages/DistributorTracking";
 
 import { useEffect, useState } from "react";
 
@@ -320,6 +324,14 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/peternak/tracking"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "PETERNAK"]}>
+              <PeternakTracking />
+            </PrivateRoute>
+          }
+        />
 
         <Route
           path="/pasarhewan"
@@ -435,6 +447,14 @@ function App() {
           element={
             <PrivateRoute allowedRoles={["ADMIN", "DISTRIBUTOR"]}>
               <DistributorSettings />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/distributor/tracking"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "DISTRIBUTOR"]}>
+              <DistributorTracking />
             </PrivateRoute>
           }
         />
@@ -646,6 +666,14 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/jagal/tracking"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "JAGAL"]}>
+              <JagalTracking />
+            </PrivateRoute>
+          }
+        />
 
         {/* RPH routes */}
         <Route
@@ -735,6 +763,14 @@ function App() {
           element={
             <PrivateRoute allowedRoles={["ADMIN", "RPH"]}>
               <RphVerifikasiHalal />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/rph/tracking"
+          element={
+            <PrivateRoute allowedRoles={["ADMIN", "RPH"]}>
+              <RphTracking />
             </PrivateRoute>
           }
         />
